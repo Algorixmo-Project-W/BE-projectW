@@ -212,21 +212,17 @@ Request → Routes → Controllers → Services → Database
 ## 📡 API Endpoints
 
 ### **Health Check**
-```http
-GET /api/check
-```
+- `GET /api/check` - Check server status
 
 ### **User Management**
-```http
-POST /api/users/create
-Content-Type: application/json
+- `POST /api/users/create` - Create a new user account
+- `POST /api/users/login` - Login with email and password
 
-{
-  "email": "user@example.com",
-  "password": "password123",
-  "name": "John Doe"
-}
-```
+### **WhatsApp Credentials**
+- `POST /api/wa-credentials/add` - Add WhatsApp Business API credentials
+- `GET /api/wa-credentials/user/:userId` - Get all credentials for a specific user
+- `PUT /api/wa-credentials/:id` - Update WhatsApp credentials
+- `DELETE /api/wa-credentials/:id` - Delete WhatsApp credentials
 
 ## 🔧 Drizzle Studio
 

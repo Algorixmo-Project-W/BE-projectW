@@ -1,7 +1,7 @@
 import { Request, Response } from 'express';
 import { UserService } from '../services/user.service.js';
 import { isValidEmail, isValidPassword, sanitizeEmail, sanitizeName } from '../utils/validators.js';
-import { hashPassword } from '../utils/password.js';
+import { hashPassword, comparePassword } from '../utils/password.js';
 
 export class UserController {
   /**
@@ -66,6 +66,65 @@ export class UserController {
       });
     } catch (error) {
       console.error('Error creating user:', error);
+      return res.status(500).json({
+        success: false,
+        message: 'Internal server error'
+      });
+    }
+  }
+
+  /**
+   * Login user
+   * POST /api/users/login
+   */
+  static async login(req: Request, res: Response) {
+    try {
+      const { email, password } = req.body;
+
+      // Validate required fields
+      if (!email || !password) {
+        return res.status(400).json({
+          success: false,
+          message: 'Email and password are required'
+        });
+      }
+
+      // Validate email format
+      if (!isValidEmail(email)) {
+        return res.status(400).json({
+          success: false,
+          message: 'Invalid email format'
+        });
+      }
+
+      // Find user by email
+      const user = await UserService.findByEmail(sanitizeEmail(email));
+      if (!user) {
+        return res.status(401).json({
+          success: false,
+          message: 'Invalid email or password'
+        });
+      }
+
+      // Compare password
+      const isPasswordValid = await comparePassword(password, user.passwordHash);
+      if (!isPasswordValid) {
+        return res.status(401).json({
+          success: false,
+          message: 'Invalid email or password'
+        });
+      }
+
+      // Return safe user data (without password hash)
+      const safeUser = UserService.toSafeUser(user);
+
+      return res.status(200).json({
+        success: true,
+        message: 'Login successful',
+        data: safeUser
+      });
+    } catch (error) {
+      console.error('Error logging in user:', error);
       return res.status(500).json({
         success: false,
         message: 'Internal server error'
