@@ -228,10 +228,10 @@ Request → Routes → Controllers → Services → Database
 ### **Webhook Management**
 - `POST /api/webhook/generate` - Generate webhook configuration with callback URL and verify token
 - `POST /api/webhook/regenerate/:id` - Regenerate verify token for existing webhook
-- `GET /api/webhook/user/:userId` - Get webhook configuration for a user
-- `DELETE /api/webhook/:id` - Delete webhook configuration
-- `GET /api/webhook/:userId` - WhatsApp webhook verification endpoint
-- `POST /api/webhook/:userId` - WhatsApp webhook message handler
+- `GET /api/webhook/config/:userId` - Get webhook configuration for a user
+- `DELETE /api/webhook/config/:id` - Delete webhook configuration
+- `GET /api/webhook/:userId` - WhatsApp webhook verification endpoint (called by Meta)
+- `POST /api/webhook/:userId` - WhatsApp webhook message handler (called by Meta)
 
 ## 🔧 Drizzle Studio
 

@@ -221,29 +221,48 @@ export class WebhookController {
       const token = req.query['hub.verify_token'];
       const challenge = req.query['hub.challenge'];
 
+      console.log('🔍 Webhook verification attempt:', {
+        userId,
+        mode,
+        token,
+        challenge,
+        fullUrl: req.originalUrl,
+        query: req.query
+      });
+
       // Check if this is a webhook verification request
       if (mode === 'subscribe') {
         // Find webhook config for this user
         const webhook = await WebhookService.findByUserId(userId);
 
         if (!webhook) {
-          console.error('Webhook config not found for user:', userId);
+          console.error('❌ Webhook config not found for user:', userId);
           return res.status(404).send('Webhook not found');
         }
+
+        console.log('📋 Webhook config found:', {
+          storedToken: webhook.verifyToken,
+          receivedToken: token,
+          match: token === webhook.verifyToken
+        });
 
         // Verify the token matches
         if (token === webhook.verifyToken) {
           console.log('✅ Webhook verified successfully for user:', userId);
+          console.log('✅ Returning challenge:', challenge);
           return res.status(200).send(challenge);
         } else {
           console.error('❌ Webhook verification failed - token mismatch');
+          console.error('Expected:', webhook.verifyToken);
+          console.error('Received:', token);
           return res.status(403).send('Forbidden');
         }
       }
 
+      console.error('❌ Invalid hub.mode:', mode);
       return res.status(400).send('Bad Request');
     } catch (error) {
-      console.error('Error verifying webhook:', error);
+      console.error('❌ Error verifying webhook:', error);
       return res.status(500).send('Internal Server Error');
     }
   }

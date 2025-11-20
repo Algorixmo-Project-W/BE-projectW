@@ -10,12 +10,13 @@ router.post('/generate', WebhookController.generateWebhook);
 router.post('/regenerate/:id', WebhookController.regenerateToken);
 
 // Get webhook configuration by user ID
-router.get('/user/:userId', WebhookController.getByUserId);
+router.get('/config/:userId', WebhookController.getByUserId);
 
 // Delete webhook configuration
-router.delete('/:id', WebhookController.deleteWebhook);
+router.delete('/config/:id', WebhookController.deleteWebhook);
 
 // WhatsApp webhook verification and message handler
+// These MUST be at the bottom to avoid conflicts
 router.get('/:userId', WebhookController.verifyWebhook);
 router.post('/:userId', WebhookController.handleWebhook);
 
