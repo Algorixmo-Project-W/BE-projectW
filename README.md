@@ -175,6 +175,7 @@ project-w/
 The project includes the following tables:
 - **users** - Admin accounts with authentication
 - **wa_credentials** - WhatsApp Business API credentials
+- **webhook_configs** - Webhook configurations with callback URLs and verify tokens
 - **campaigns** - Auto-reply campaign configurations (coming soon)
 - **messages** - All incoming and outgoing WhatsApp messages (coming soon)
 - **contacts** - Customer contact information (coming soon)
@@ -223,6 +224,14 @@ Request → Routes → Controllers → Services → Database
 - `GET /api/wa-credentials/user/:userId` - Get all credentials for a specific user
 - `PUT /api/wa-credentials/:id` - Update WhatsApp credentials
 - `DELETE /api/wa-credentials/:id` - Delete WhatsApp credentials
+
+### **Webhook Management**
+- `POST /api/webhook/generate` - Generate webhook configuration with callback URL and verify token
+- `POST /api/webhook/regenerate/:id` - Regenerate verify token for existing webhook
+- `GET /api/webhook/user/:userId` - Get webhook configuration for a user
+- `DELETE /api/webhook/:id` - Delete webhook configuration
+- `GET /api/webhook/:userId` - WhatsApp webhook verification endpoint
+- `POST /api/webhook/:userId` - WhatsApp webhook message handler
 
 ## 🔧 Drizzle Studio
 

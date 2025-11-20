@@ -63,6 +63,11 @@ The system enables businesses to:
 - **Error Handling:** Always return consistent JSON responses with success/error status
 - **Data Sanitization:** Clean and normalize user input before processing
 
+## Testing Guidelines
+- **DO NOT** create test files, test scripts, or testing guides unless explicitly requested by the user
+- Focus on implementing features and production code only
+- Only create testing-related files when the user specifically asks for tests
+
 ## Important Files
 - `README.md` - Project documentation, setup instructions, and usage guide
 - `package.json` - Dependencies, scripts, and project metadata
