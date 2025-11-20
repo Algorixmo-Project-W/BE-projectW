@@ -272,52 +272,51 @@ export class WebhookController {
    * POST /api/webhook/:userId
    */
   static async handleWebhook(req: Request, res: Response) {
-    try {
-        console.log('Received webhook request');
-      const { userId } = req.params;
-      const body = req.body;
+  try {
+    const { userId } = req.params;
 
-      // Verify webhook exists and is active
+    // 1️⃣ Handle GET verification
+    if (req.method === 'GET') {
+      const mode = req.query['hub.mode'];
+      const token = req.query['hub.verify_token'];
+      const challenge = req.query['hub.challenge'];
+
+      const webhook = await WebhookService.findByUserId(userId);
+      if (!webhook || !webhook.isActive) {
+        return res.sendStatus(403);
+      }
+
+      if (mode === 'subscribe' && token === webhook.verifyToken) {
+        console.log('Webhook verified for user:', userId);
+        return res.status(200).send(challenge); // Meta expects plain text
+      } else {
+        return res.sendStatus(403);
+      }
+    }
+
+    // 2️⃣ Handle POST messages
+    if (req.method === 'POST') {
+      const body = req.body;
       const webhook = await WebhookService.findByUserId(userId);
 
-      if (!webhook) {
-        console.error('Webhook config not found for user:', userId);
-        return res.status(404).json({
-          success: false,
-          message: 'Webhook not found'
-        });
+      if (!webhook || !webhook.isActive) {
+        return res.sendStatus(403);
       }
 
-      if (!webhook.isActive) {
-        console.error('Webhook is not active for user:', userId);
-        return res.status(403).json({
-          success: false,
-          message: 'Webhook is not active'
-        });
-      }
-
-      // Log the incoming webhook data
       console.log('📨 Incoming WhatsApp webhook for user:', userId);
       console.log('Webhook data:', JSON.stringify(body, null, 2));
 
-      // TODO: Process the webhook data (messages, status updates, etc.)
-      // This is where you'll add logic to:
-      // 1. Parse the incoming message
-      // 2. Store it in the database
-      // 3. Trigger auto-reply campaigns
-      // 4. Send responses back to WhatsApp
+      // TODO: Process message, store, auto-reply
 
-      // Acknowledge receipt
-      return res.status(200).json({
-        success: true,
-        message: 'Webhook received'
-      });
-    } catch (error) {
-      console.error('Error handling webhook:', error);
-      return res.status(500).json({
-        success: false,
-        message: 'Internal server error'
-      });
+      return res.sendStatus(200); // Must respond 200 to acknowledge
     }
+
+    // 3️⃣ Other HTTP methods not allowed
+    return res.sendStatus(405);
+  } catch (error) {
+    console.error('Error handling webhook:', error);
+    return res.sendStatus(500);
   }
+}
+
 }
