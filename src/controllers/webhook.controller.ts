@@ -273,6 +273,11 @@ export class WebhookController {
     try {
       const body = req.body;
 
+      console.log('🔥 WEBHOOK EVENT FIELDS 🔥');
+      console.log(
+        req.body.entry?.[0]?.changes?.[0]?.field
+      );
+
       console.log('📨 Incoming WhatsApp webhook');
       console.log('Payload:', JSON.stringify(body, null, 2));
 
