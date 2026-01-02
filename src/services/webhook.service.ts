@@ -13,10 +13,11 @@ export class WebhookService {
   }
 
   /**
-   * Generate callback URL for a user
+   * Generate callback URL (fixed URL for Meta)
+   * Meta requires a single fixed URL, not dynamic URLs with user IDs
    */
-  static generateCallbackUrl(userId: string, baseUrl: string): string {
-    return `${baseUrl}/api/webhook/${userId}`;
+  static generateCallbackUrl(baseUrl: string): string {
+    return `${baseUrl}/api/webhook/whatsapp`;
   }
 
   /**

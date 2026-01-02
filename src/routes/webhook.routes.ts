@@ -15,9 +15,9 @@ router.get('/config/:userId', WebhookController.getByUserId);
 // Delete webhook configuration
 router.delete('/config/:id', WebhookController.deleteWebhook);
 
-// WhatsApp webhook verification and message handler
-// These MUST be at the bottom to avoid conflicts
-router.get('/:userId', WebhookController.verifyWebhook);
-router.post('/:userId', WebhookController.handleWebhook);
+// WhatsApp webhook endpoints (FIXED URL - no dynamic params)
+// Meta requires a single fixed URL for all webhooks
+router.get('/whatsapp', WebhookController.verifyWebhook);
+router.post('/whatsapp', WebhookController.handleWebhook);
 
 export default router;

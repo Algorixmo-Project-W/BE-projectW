@@ -230,8 +230,8 @@ Request → Routes → Controllers → Services → Database
 - `POST /api/webhook/regenerate/:id` - Regenerate verify token for existing webhook
 - `GET /api/webhook/config/:userId` - Get webhook configuration for a user
 - `DELETE /api/webhook/config/:id` - Delete webhook configuration
-- `GET /api/webhook/:userId` - WhatsApp webhook verification endpoint (called by Meta)
-- `POST /api/webhook/:userId` - WhatsApp webhook message handler (called by Meta)
+- `GET /api/webhook/whatsapp` - WhatsApp webhook verification endpoint (used by Meta)
+- `POST /api/webhook/whatsapp` - WhatsApp webhook message handler (used by Meta)
 
 ## 🔧 Drizzle Studio
 
