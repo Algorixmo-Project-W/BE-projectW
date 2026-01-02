@@ -13,11 +13,11 @@ export class WebhookService {
   }
 
   /**
-   * Generate callback URL (fixed URL for Meta)
-   * Meta requires a single fixed URL, not dynamic URLs with user IDs
+   * Generate callback URL (dynamic URL with userId)
+   * Each user gets their own webhook URL
    */
-  static generateCallbackUrl(baseUrl: string): string {
-    return `${baseUrl}/api/webhook/whatsapp`;
+  static generateCallbackUrl(baseUrl: string, userId: string): string {
+    return `${baseUrl}/api/webhook/${userId}`;
   }
 
   /**
@@ -50,17 +50,6 @@ export class WebhookService {
       .select()
       .from(webhookConfigs)
       .where(eq(webhookConfigs.userId, userId));
-    return webhook;
-  }
-
-  /**
-   * Find webhook config by verify token
-   */
-  static async findByVerifyToken(verifyToken: string) {
-    const [webhook] = await db
-      .select()
-      .from(webhookConfigs)
-      .where(eq(webhookConfigs.verifyToken, verifyToken));
     return webhook;
   }
 

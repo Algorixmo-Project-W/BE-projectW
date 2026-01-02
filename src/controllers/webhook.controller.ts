@@ -56,8 +56,8 @@ export class WebhookController {
         });
       }
       
-      // Generate callback URL (fixed URL for Meta - no user ID)
-      const callbackUrl = WebhookService.generateCallbackUrl(baseUrl);
+      // Generate callback URL (dynamic URL with userId)
+      const callbackUrl = WebhookService.generateCallbackUrl(baseUrl, userId);
 
       // Create webhook config
       const webhookConfig = await WebhookService.create({
@@ -211,19 +211,21 @@ export class WebhookController {
   }
 
   /**
-   * WhatsApp webhook verification endpoint
-   * GET /api/webhook/whatsapp
+   * WhatsApp webhook verification endpoint (Dynamic URL with userId)
+   * GET /api/webhook/:userId
    * 
-   * Meta sends: GET /whatsapp?hub.mode=subscribe&hub.verify_token=TOKEN&hub.challenge=CHALLENGE
-   * Must respond with: Plain text challenge string with 200 status
+   * Each user gets their own webhook URL
+   * This works better for multi-tenant setups where each user configures their own webhook
    */
-  static async verifyWebhook(req: Request, res: Response) {
+  static async verifyWebhookByUserId(req: Request, res: Response) {
     try {
+      const { userId } = req.params;
       const mode = req.query['hub.mode'] as string;
       const token = req.query['hub.verify_token'] as string;
       const challenge = req.query['hub.challenge'] as string;
 
-      console.log('🔍 Webhook verification request:', {
+      console.log('🔍 Webhook verification request (dynamic URL):', {
+        userId,
         mode,
         hasToken: !!token,
         hasChallenge: !!challenge
@@ -235,22 +237,26 @@ export class WebhookController {
         return res.sendStatus(403);
       }
 
-      // Find webhook configuration by verify token
-      // Since we don't have userId in URL, we need to find by token
-      const webhook = await WebhookService.findByVerifyToken(token);
+      // Find webhook configuration for this user
+      const webhook = await WebhookService.findByUserId(userId);
       
       if (!webhook) {
-        console.error('❌ Webhook config not found for token');
+        console.error('❌ Webhook config not found for user:', userId);
         return res.sendStatus(403);
       }
 
       if (!webhook.isActive) {
-        console.error('❌ Webhook is not active');
+        console.error('❌ Webhook is not active for user:', userId);
         return res.sendStatus(403);
       }
 
-      console.log('✅ Webhook verified successfully for user:', webhook.userId);
-      // IMPORTANT: Must return challenge as plain text, not JSON
+      // Verify token matches
+      if (token !== webhook.verifyToken) {
+        console.error('❌ Token mismatch for user:', userId);
+        return res.sendStatus(403);
+      }
+
+      console.log('✅ Webhook verified successfully for user:', userId);
       return res.status(200).send(challenge);
     } catch (error) {
       console.error('❌ Error verifying webhook:', error);
@@ -259,26 +265,32 @@ export class WebhookController {
   }
 
   /**
-   * WhatsApp webhook message handler
-   * POST /api/webhook/whatsapp
+   * WhatsApp webhook message handler (Dynamic URL with userId)
+   * POST /api/webhook/:userId
    * 
-   * Receives JSON payloads from WhatsApp for:
-   * - Incoming messages
-   * - Message status updates
-   * - Other notifications
-   * 
-   * Must respond with 200 status to acknowledge receipt
+   * Alternative approach: Each user gets their own webhook URL
    */
-  static async handleWebhook(req: Request, res: Response) {
+  static async handleWebhookByUserId(req: Request, res: Response) {
     try {
+      const { userId } = req.params;
       const body = req.body;
 
+      console.log('📨 Incoming WhatsApp webhook (dynamic URL) for user:', userId);
       console.log('🔥 WEBHOOK EVENT FIELDS 🔥');
-      console.log(
-        req.body.entry?.[0]?.changes?.[0]?.field
-      );
+      console.log(req.body.entry?.[0]?.changes?.[0]?.field);
 
-      console.log('📨 Incoming WhatsApp webhook');
+      // Verify webhook exists and is active
+      const webhook = await WebhookService.findByUserId(userId);
+      if (!webhook) {
+        console.error('❌ Webhook config not found for user:', userId);
+        return res.sendStatus(403);
+      }
+
+      if (!webhook.isActive) {
+        console.error('❌ Webhook is not active for user:', userId);
+        return res.sendStatus(403);
+      }
+
       console.log('Payload:', JSON.stringify(body, null, 2));
 
       // Validate webhook payload structure
@@ -287,13 +299,12 @@ export class WebhookController {
         return res.sendStatus(400);
       }
 
-      // Check if this is a WhatsApp Business Account webhook
       if (body.object !== 'whatsapp_business_account') {
         console.log('⚠️  Unknown webhook object type:', body.object);
-        return res.sendStatus(200); // Still acknowledge
+        return res.sendStatus(200);
       }
 
-      // Extract phone number ID to identify which user/business this belongs to
+      // Extract phone number ID
       let phoneNumberId: string | null = null;
 
       // Process entries
@@ -304,23 +315,18 @@ export class WebhookController {
               const field = change.field;
               const value = change.value;
 
-              // Extract phone number ID from metadata
               if (value.metadata && value.metadata.phone_number_id) {
                 phoneNumberId = value.metadata.phone_number_id;
                 console.log('📞 Phone number ID:', phoneNumberId);
-                
-                // TODO: Find user by phone number ID from wa_credentials table
-                // For now, we'll just log it
               }
 
-              console.log(`📬 Processing ${field} change`);
+              console.log(`📬 Processing ${field} change for user:`, userId);
 
-              // Handle different types of changes
               if (field === 'messages') {
-                // Handle incoming messages
                 if (value.messages && Array.isArray(value.messages)) {
                   for (const message of value.messages) {
                     console.log('💬 New message:', {
+                      userId,
                       from: message.from,
                       id: message.id,
                       type: message.type,
@@ -329,24 +335,23 @@ export class WebhookController {
                     });
                     
                     // TODO: 
-                    // 1. Find user by phoneNumberId from wa_credentials table
-                    // 2. Store message in database
-                    // 3. Check for campaign matches for that user
-                    // 4. Send auto-reply if needed
+                    // 1. Store message in database with userId
+                    // 2. Check for campaign matches for this specific user
+                    // 3. Send auto-reply if needed
                   }
                 }
 
-                // Handle message statuses
                 if (value.statuses && Array.isArray(value.statuses)) {
                   for (const status of value.statuses) {
                     console.log('📊 Message status update:', {
+                      userId,
                       id: status.id,
                       status: status.status,
                       timestamp: status.timestamp,
                       phoneNumberId
                     });
                     
-                    // TODO: Update message status in database
+                    // TODO: Update message status in database for this user
                   }
                 }
               } else {
@@ -357,12 +362,9 @@ export class WebhookController {
         }
       }
 
-      // IMPORTANT: Always return 200 to acknowledge receipt
-      // If you don't respond with 200, WhatsApp will retry the webhook
       return res.sendStatus(200);
     } catch (error) {
       console.error('❌ Error handling webhook:', error);
-      // Still return 200 to prevent retries for application errors
       return res.sendStatus(200);
     }
   }
