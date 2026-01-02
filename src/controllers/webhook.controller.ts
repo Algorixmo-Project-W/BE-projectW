@@ -213,110 +213,157 @@ export class WebhookController {
   /**
    * WhatsApp webhook verification endpoint
    * GET /api/webhook/:userId
+   * 
+   * Meta sends: GET /:userId?hub.mode=subscribe&hub.verify_token=TOKEN&hub.challenge=CHALLENGE
+   * Must respond with: Plain text challenge string with 200 status
    */
   static async verifyWebhook(req: Request, res: Response) {
     try {
       const { userId } = req.params;
-      const mode = req.query['hub.mode'];
-      const token = req.query['hub.verify_token'];
-      const challenge = req.query['hub.challenge'];
+      const mode = req.query['hub.mode'] as string;
+      const token = req.query['hub.verify_token'] as string;
+      const challenge = req.query['hub.challenge'] as string;
 
-      console.log('🔍 Webhook verification attempt:', {
+      console.log('🔍 Webhook verification request:', {
         userId,
         mode,
-        token,
-        challenge,
-        fullUrl: req.originalUrl,
-        query: req.query
+        hasToken: !!token,
+        hasChallenge: !!challenge
       });
 
-      // Check if this is a webhook verification request
-      if (mode === 'subscribe') {
-        // Find webhook config for this user
-        const webhook = await WebhookService.findByUserId(userId);
-
-        if (!webhook) {
-          console.error('❌ Webhook config not found for user:', userId);
-          return res.status(404).send('Webhook not found');
-        }
-
-        console.log('📋 Webhook config found:', {
-          storedToken: webhook.verifyToken,
-          receivedToken: token,
-          match: token === webhook.verifyToken
-        });
-
-        // Verify the token matches
-        if (token === webhook.verifyToken) {
-          console.log('✅ Webhook verified successfully for user:', userId);
-          console.log('✅ Returning challenge:', challenge);
-          return res.status(200).send(challenge);
-        } else {
-          console.error('❌ Webhook verification failed - token mismatch');
-          console.error('Expected:', webhook.verifyToken);
-          console.error('Received:', token);
-          return res.status(403).send('Forbidden');
-        }
+      // Verify this is a subscribe request
+      if (mode !== 'subscribe') {
+        console.error('❌ Invalid hub.mode:', mode);
+        return res.sendStatus(403);
       }
 
-      console.error('❌ Invalid hub.mode:', mode);
-      return res.status(400).send('Bad Request');
+      // Find webhook configuration
+      const webhook = await WebhookService.findByUserId(userId);
+      if (!webhook) {
+        console.error('❌ Webhook config not found for user:', userId);
+        return res.sendStatus(403);
+      }
+
+      if (!webhook.isActive) {
+        console.error('❌ Webhook is not active for user:', userId);
+        return res.sendStatus(403);
+      }
+
+      // Verify token matches
+      if (token === webhook.verifyToken) {
+        console.log('✅ Webhook verified successfully for user:', userId);
+        // IMPORTANT: Must return challenge as plain text, not JSON
+        return res.status(200).send(challenge);
+      } else {
+        console.error('❌ Token mismatch. Expected:', webhook.verifyToken.substring(0, 10) + '...');
+        return res.sendStatus(403);
+      }
     } catch (error) {
       console.error('❌ Error verifying webhook:', error);
-      return res.status(500).send('Internal Server Error');
+      return res.sendStatus(500);
     }
   }
 
   /**
    * WhatsApp webhook message handler
    * POST /api/webhook/:userId
+   * 
+   * Receives JSON payloads from WhatsApp for:
+   * - Incoming messages
+   * - Message status updates
+   * - Other notifications
+   * 
+   * Must respond with 200 status to acknowledge receipt
    */
   static async handleWebhook(req: Request, res: Response) {
-  try {
-    const { userId } = req.params;
-
-    // 1️⃣ Handle GET verification
-    if (req.method === 'GET') {
-      const mode = req.query['hub.mode'];
-      const token = req.query['hub.verify_token'];
-      const challenge = req.query['hub.challenge'];
-
-      const webhook = await WebhookService.findByUserId(userId);
-      if (!webhook || !webhook.isActive) {
-        return res.sendStatus(403);
-      }
-
-      if (mode === 'subscribe' && token === webhook.verifyToken) {
-        console.log('Webhook verified for user:', userId);
-        return res.status(200).send(challenge); // Meta expects plain text
-      } else {
-        return res.sendStatus(403);
-      }
-    }
-
-    // 2️⃣ Handle POST messages
-    if (req.method === 'POST') {
+    try {
+      const { userId } = req.params;
       const body = req.body;
-      const webhook = await WebhookService.findByUserId(userId);
 
-      if (!webhook || !webhook.isActive) {
+      // Verify webhook exists and is active
+      const webhook = await WebhookService.findByUserId(userId);
+      if (!webhook) {
+        console.error('❌ Webhook config not found for user:', userId);
         return res.sendStatus(403);
       }
 
+      if (!webhook.isActive) {
+        console.error('❌ Webhook is not active for user:', userId);
+        return res.sendStatus(403);
+      }
+
+      // Log incoming webhook
       console.log('📨 Incoming WhatsApp webhook for user:', userId);
-      console.log('Webhook data:', JSON.stringify(body, null, 2));
+      console.log('Payload:', JSON.stringify(body, null, 2));
 
-      // TODO: Process message, store, auto-reply
+      // Validate webhook payload structure
+      if (!body.object) {
+        console.error('❌ Invalid webhook payload - missing object field');
+        return res.sendStatus(400);
+      }
 
-      return res.sendStatus(200); // Must respond 200 to acknowledge
+      // Check if this is a WhatsApp Business Account webhook
+      if (body.object !== 'whatsapp_business_account') {
+        console.log('⚠️  Unknown webhook object type:', body.object);
+        return res.sendStatus(200); // Still acknowledge
+      }
+
+      // Process entries
+      if (body.entry && Array.isArray(body.entry)) {
+        for (const entry of body.entry) {
+          if (entry.changes && Array.isArray(entry.changes)) {
+            for (const change of entry.changes) {
+              const field = change.field;
+              const value = change.value;
+
+              console.log(`📬 Processing ${field} change`);
+
+              // Handle different types of changes
+              if (field === 'messages') {
+                // Handle incoming messages
+                if (value.messages && Array.isArray(value.messages)) {
+                  for (const message of value.messages) {
+                    console.log('💬 New message:', {
+                      from: message.from,
+                      id: message.id,
+                      type: message.type,
+                      timestamp: message.timestamp
+                    });
+                    
+                    // TODO: 
+                    // 1. Store message in database
+                    // 2. Check for campaign matches
+                    // 3. Send auto-reply if needed
+                  }
+                }
+
+                // Handle message statuses
+                if (value.statuses && Array.isArray(value.statuses)) {
+                  for (const status of value.statuses) {
+                    console.log('📊 Message status update:', {
+                      id: status.id,
+                      status: status.status,
+                      timestamp: status.timestamp
+                    });
+                    
+                    // TODO: Update message status in database
+                  }
+                }
+              } else {
+                console.log('ℹ️  Unhandled field type:', field);
+              }
+            }
+          }
+        }
+      }
+
+      // IMPORTANT: Always return 200 to acknowledge receipt
+      // If you don't respond with 200, WhatsApp will retry the webhook
+      return res.sendStatus(200);
+    } catch (error) {
+      console.error('❌ Error handling webhook:', error);
+      // Still return 200 to prevent retries for application errors
+      return res.sendStatus(200);
     }
-
-    // 3️⃣ Other HTTP methods not allowed
-    return res.sendStatus(405);
-  } catch (error) {
-    console.error('Error handling webhook:', error);
-    return res.sendStatus(500);
   }
-}
-
 }
