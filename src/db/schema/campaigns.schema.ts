@@ -1,0 +1,14 @@
+import { pgTable, text, timestamp, uuid, boolean, integer } from 'drizzle-orm/pg-core';
+import { users } from './users.schema';
+
+// Campaigns table - Stores auto-reply campaigns
+export const campaigns = pgTable('campaigns', {
+  id: uuid('id').defaultRandom().primaryKey(),
+  userId: uuid('user_id').notNull().references(() => users.id, { onDelete: 'cascade' }),
+  name: text('name').notNull(),
+  fixedReply: text('fixed_reply').notNull(), // The auto-reply message
+  isActive: boolean('is_active').default(false).notNull(),
+  messageCount: integer('message_count').default(0).notNull(), // Track responses sent
+  createdAt: timestamp('created_at').defaultNow().notNull(),
+  updatedAt: timestamp('updated_at').defaultNow().notNull(),
+});

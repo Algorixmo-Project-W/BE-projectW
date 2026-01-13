@@ -131,4 +131,168 @@ export class UserController {
       });
     }
   }
+
+  /**
+   * Get all users
+   * GET /api/users
+   */
+  static async getAll(_req: Request, res: Response) {
+    try {
+      const users = await UserService.findAll();
+      const safeUsers = users.map(user => UserService.toSafeUser(user));
+
+      return res.status(200).json({
+        success: true,
+        message: 'Users retrieved successfully',
+        data: safeUsers
+      });
+    } catch (error) {
+      console.error('Error getting users:', error);
+      return res.status(500).json({
+        success: false,
+        message: 'Internal server error'
+      });
+    }
+  }
+
+  /**
+   * Get user by ID
+   * GET /api/users/:id
+   */
+  static async getById(req: Request, res: Response) {
+    try {
+      const { id } = req.params;
+
+      const user = await UserService.findById(id);
+      if (!user) {
+        return res.status(404).json({
+          success: false,
+          message: 'User not found'
+        });
+      }
+
+      const safeUser = UserService.toSafeUser(user);
+
+      return res.status(200).json({
+        success: true,
+        message: 'User retrieved successfully',
+        data: safeUser
+      });
+    } catch (error) {
+      console.error('Error getting user:', error);
+      return res.status(500).json({
+        success: false,
+        message: 'Internal server error'
+      });
+    }
+  }
+
+  /**
+   * Update user
+   * PUT /api/users/:id
+   */
+  static async update(req: Request, res: Response) {
+    try {
+      const { id } = req.params;
+      const { email, password, name } = req.body;
+
+      // Check if user exists
+      const existingUser = await UserService.findById(id);
+      if (!existingUser) {
+        return res.status(404).json({
+          success: false,
+          message: 'User not found'
+        });
+      }
+
+      // Build update object
+      const updateData: any = {};
+
+      if (email) {
+        if (!isValidEmail(email)) {
+          return res.status(400).json({
+            success: false,
+            message: 'Invalid email format'
+          });
+        }
+        // Check if email is taken by another user
+        const emailUser = await UserService.findByEmail(sanitizeEmail(email));
+        if (emailUser && emailUser.id !== id) {
+          return res.status(409).json({
+            success: false,
+            message: 'Email already in use'
+          });
+        }
+        updateData.email = sanitizeEmail(email);
+      }
+
+      if (password) {
+        const passwordValidation = isValidPassword(password);
+        if (!passwordValidation.valid) {
+          return res.status(400).json({
+            success: false,
+            message: passwordValidation.message
+          });
+        }
+        updateData.passwordHash = await hashPassword(password);
+      }
+
+      if (name !== undefined) {
+        updateData.name = sanitizeName(name);
+      }
+
+      if (Object.keys(updateData).length === 0) {
+        return res.status(400).json({
+          success: false,
+          message: 'No valid fields to update'
+        });
+      }
+
+      const updatedUser = await UserService.update(id, updateData);
+      const safeUser = UserService.toSafeUser(updatedUser);
+
+      return res.status(200).json({
+        success: true,
+        message: 'User updated successfully',
+        data: safeUser
+      });
+    } catch (error) {
+      console.error('Error updating user:', error);
+      return res.status(500).json({
+        success: false,
+        message: 'Internal server error'
+      });
+    }
+  }
+
+  /**
+   * Delete user
+   * DELETE /api/users/:id
+   */
+  static async delete(req: Request, res: Response) {
+    try {
+      const { id } = req.params;
+
+      const existingUser = await UserService.findById(id);
+      if (!existingUser) {
+        return res.status(404).json({
+          success: false,
+          message: 'User not found'
+        });
+      }
+
+      await UserService.delete(id);
+
+      return res.status(200).json({
+        success: true,
+        message: 'User deleted successfully'
+      });
+    } catch (error) {
+      console.error('Error deleting user:', error);
+      return res.status(500).json({
+        success: false,
+        message: 'Internal server error'
+      });
+    }
+  }
 }
