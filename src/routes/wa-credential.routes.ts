@@ -1,5 +1,5 @@
 import { Router } from 'express';
-import { WaCredentialController } from '../controllers/wa-credential.controller';
+import { WaCredentialController } from '../controllers/wa-credential.controller.js';
 
 const router = Router();
 

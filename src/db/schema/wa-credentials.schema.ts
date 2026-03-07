@@ -1,5 +1,5 @@
 import { pgTable, text, timestamp, uuid } from 'drizzle-orm/pg-core';
-import { users } from './users.schema';
+import { users } from './users.schema.js';
 
 // WhatsApp Credentials table - Stores WhatsApp Cloud API credentials
 export const waCredentials = pgTable('wa_credentials', {

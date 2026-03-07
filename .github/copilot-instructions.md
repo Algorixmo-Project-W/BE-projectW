@@ -20,8 +20,9 @@ Routes → Controllers → Services → Database (`src/db/index.ts`)
 - **Schemas** (`src/db/schema/*.schema.ts`): Drizzle table definitions
 
 ### ESM Import Rules (Critical)
-- **Schema files** → import WITHOUT `.js`: `import { users } from './users.schema'`
-- **All other files** → import WITH `.js`: `import { db } from '../db/index.js'`
+- **ALL local imports** → MUST use `.js` extension: `import { users } from './users.schema.js'`
+- This applies to schema files, services, controllers, routes - everything
+- Example: `import { db } from '../db/index.js'`
 
 ### Database Patterns
 ```typescript
