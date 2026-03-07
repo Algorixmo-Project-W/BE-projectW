@@ -2,11 +2,12 @@ declare global {
   namespace NodeJS {
     interface ProcessEnv {
       // Database Configuration
-      DB_HOST: string;
-      DB_PORT: string;
-      DB_USER: string;
-      DB_PASSWORD: string;
-      DB_NAME: string;
+      DATABASE_URL?: string;
+      DB_HOST?: string;
+      DB_PORT?: string;
+      DB_USER?: string;
+      DB_PASSWORD?: string;
+      DB_NAME?: string;
 
       // Application Configuration
       NODE_ENV: 'development' | 'production' | 'test';
@@ -20,6 +21,7 @@ declare global {
 
       // Webhook Configuration
       WEBHOOK_VERIFY_TOKEN: string;
+      WHATSAPP_APP_SECRET?: string;
     }
   }
 }

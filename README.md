@@ -34,12 +34,16 @@ A lightweight WhatsApp-based campaign automation platform designed for businesse
    
    Edit `.env` and update with your credentials:
    ```
-   # Database Configuration (Local PostgreSQL)
-   DB_HOST=localhost
-   DB_PORT=5432
-   DB_USER=postgres
-   DB_PASSWORD=your_password
-   DB_NAME=project_w
+   # Database Configuration (Supabase/PostgreSQL)
+   # Preferred: full connection URL
+   DATABASE_URL=postgresql://postgres:your_password@db.your-project-ref.supabase.co:5432/postgres
+
+   # Optional fallback (local PostgreSQL)
+   # DB_HOST=localhost
+   # DB_PORT=5432
+   # DB_USER=postgres
+   # DB_PASSWORD=your_password
+   # DB_NAME=project_w
 
    # Application Configuration
    NODE_ENV=development
@@ -53,6 +57,7 @@ A lightweight WhatsApp-based campaign automation platform designed for businesse
 
    # Webhook Configuration
    WEBHOOK_VERIFY_TOKEN=your_webhook_verify_token_here
+   WHATSAPP_APP_SECRET=your_app_secret_here
    ```
 
 3. **Create the database:**

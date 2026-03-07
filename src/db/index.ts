@@ -5,16 +5,18 @@ import dotenv from 'dotenv';
 
 dotenv.config();
 
-// Validate required environment variables
-const requiredEnvVars = ['DB_HOST', 'DB_PORT', 'DB_USER', 'DB_PASSWORD', 'DB_NAME'];
-for (const envVar of requiredEnvVars) {
-  if (!process.env[envVar]) {
-    throw new Error(`${envVar} is not defined in environment variables`);
-  }
-}
+// Prefer Supabase/Postgres URL, fallback to individual DB variables
+const connectionString = process.env.DATABASE_URL ?? (() => {
+  const requiredEnvVars = ['DB_HOST', 'DB_PORT', 'DB_USER', 'DB_PASSWORD', 'DB_NAME'];
 
-// Build connection string from individual parameters
-const connectionString = `postgresql://${process.env.DB_USER}:${process.env.DB_PASSWORD}@${process.env.DB_HOST}:${process.env.DB_PORT}/${process.env.DB_NAME}`;
+  for (const envVar of requiredEnvVars) {
+    if (!process.env[envVar]) {
+      throw new Error(`DATABASE_URL is not defined and ${envVar} is missing in environment variables`);
+    }
+  }
+
+  return `postgresql://${process.env.DB_USER}:${process.env.DB_PASSWORD}@${process.env.DB_HOST}:${process.env.DB_PORT}/${process.env.DB_NAME}`;
+})();
 
 // Create postgres client
 const client = postgres(connectionString);
