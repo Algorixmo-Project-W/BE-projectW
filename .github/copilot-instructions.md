@@ -20,9 +20,10 @@ Routes → Controllers → Services → Database (`src/db/index.ts`)
 - **Schemas** (`src/db/schema/*.schema.ts`): Drizzle table definitions
 
 ### ESM Import Rules (Critical)
-- **Schema files** (`src/db/schema/*.ts`) → import WITHOUT `.js`: `import { users } from './users.schema'`
+- **Schema files** (`src/db/schema/*.schema.ts`) → import WITHOUT `.js`: `import { users } from './users.schema'`
+- **Schema index** (`src/db/schema/index.ts`) → export WITH `.js`: `export * from './users.schema.js'`
 - **All other files** → import WITH `.js`: `import { db } from '../db/index.js'`
-- This is required because drizzle-kit runs in CommonJS mode
+- This is required because drizzle-kit runs in CommonJS mode but Node.js runtime needs ESM extensions
 
 ### Database Patterns
 ```typescript
