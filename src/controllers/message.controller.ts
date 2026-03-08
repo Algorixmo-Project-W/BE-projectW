@@ -87,7 +87,7 @@ export class MessageController {
    */
   static async create(req: Request, res: Response) {
     try {
-      const { userId, campaignId, senderNumber, messageType, messageContent, direction, replyStatus } = req.body;
+      const { userId, campaignId, senderNumber, messageType, messageContent, replyContent, replyStatus } = req.body;
 
       // Validate required fields
       if (!userId || !senderNumber || !messageContent) {
@@ -112,7 +112,7 @@ export class MessageController {
         senderNumber,
         messageType: messageType || 'text',
         messageContent,
-        direction: direction || 'incoming',
+        replyContent: replyContent || null,
         replyStatus: replyStatus || 'pending'
       });
 
