@@ -2,6 +2,8 @@ import { Request, Response } from 'express';
 import { WebhookService } from '../services/webhook.service.js';
 import { UserService } from '../services/user.service.js';
 import { MessageService } from '../services/message.service.js';
+import { CampaignService } from '../services/campaign.service.js';
+import { WhatsAppService } from '../services/whatsapp.service.js';
 
 export class WebhookController {
   /**
@@ -359,8 +361,20 @@ export class WebhookController {
 
                     // Save message to database
                     try {
+                      // Check if user has an active campaign
+                      const activeCampaign = await CampaignService.findActiveByUserId(userId);
+                      
+                      if (!activeCampaign) {
+                        console.log('⚠️  No active campaign for user:', userId, '- Message not saved');
+                        continue; // Skip saving and replying if no active campaign
+                      }
+
+                      console.log('✅ Active campaign found:', activeCampaign.name);
+
+                      // Save incoming message to database with campaign ID
                       const savedMessage = await MessageService.create({
                         userId,
+                        campaignId: activeCampaign.id,
                         senderNumber: message.from,
                         messageType: message.type,
                         messageContent,
@@ -369,13 +383,50 @@ export class WebhookController {
                         whatsappMessageId: message.id,
                         receivedAt: new Date(parseInt(message.timestamp) * 1000)
                       });
-                      console.log('✅ Message saved to database:', savedMessage.id);
-                      
-                      // TODO: 
-                      // 1. Check for campaign matches for this specific user
-                      // 2. Send auto-reply if needed
+                      console.log('✅ Incoming message saved to database:', savedMessage.id);
+
+                      // Send auto-reply using campaign's fixedReply
+                      if (activeCampaign.fixedReply) {
+                        console.log('📤 Sending auto-reply to:', message.from);
+                        const sendResult = await WhatsAppService.sendTextMessage(
+                          userId,
+                          message.from,
+                          activeCampaign.fixedReply
+                        );
+
+                        if (sendResult.success) {
+                          console.log('✅ Auto-reply sent successfully, messageId:', sendResult.messageId);
+
+                          // Save outgoing reply message to database
+                          const replyMessage = await MessageService.create({
+                            userId,
+                            campaignId: activeCampaign.id,
+                            senderNumber: message.from, // The recipient of our reply
+                            messageType: 'text',
+                            messageContent: activeCampaign.fixedReply,
+                            direction: 'outgoing',
+                            replyStatus: 'sent',
+                            whatsappMessageId: sendResult.messageId || null,
+                            receivedAt: new Date()
+                          });
+                          console.log('✅ Outgoing reply saved to database:', replyMessage.id);
+
+                          // Update incoming message status to 'replied'
+                          await MessageService.updateReplyStatus(savedMessage.id, 'replied');
+
+                          // Increment campaign message count
+                          await CampaignService.incrementMessageCount(activeCampaign.id);
+                          console.log('✅ Campaign message count incremented');
+                        } else {
+                          console.error('❌ Failed to send auto-reply:', sendResult.error);
+                          // Update message status to 'failed'
+                          await MessageService.updateReplyStatus(savedMessage.id, 'failed');
+                        }
+                      } else {
+                        console.log('⚠️  Campaign has no fixedReply configured');
+                      }
                     } catch (dbError) {
-                      console.error('❌ Failed to save message to database:', dbError);
+                      console.error('❌ Failed to process message:', dbError);
                     }
                   }
                 }

@@ -86,4 +86,16 @@ export class MessageService {
       .returning();
     return deletedMessage;
   }
+
+  /**
+   * Update message reply status
+   */
+  static async updateReplyStatus(id: string, status: 'pending' | 'sent' | 'replied' | 'failed') {
+    const [updatedMessage] = await db
+      .update(messages)
+      .set({ replyStatus: status })
+      .where(eq(messages.id, id))
+      .returning();
+    return updatedMessage;
+  }
 }
