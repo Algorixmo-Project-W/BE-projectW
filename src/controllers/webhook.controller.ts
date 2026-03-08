@@ -1,6 +1,7 @@
 import { Request, Response } from 'express';
 import { WebhookService } from '../services/webhook.service.js';
 import { UserService } from '../services/user.service.js';
+import { MessageService } from '../services/message.service.js';
 
 export class WebhookController {
   /**
@@ -334,10 +335,48 @@ export class WebhookController {
                       phoneNumberId
                     });
                     
-                    // TODO: 
-                    // 1. Store message in database with userId
-                    // 2. Check for campaign matches for this specific user
-                    // 3. Send auto-reply if needed
+                    // Extract message content based on type
+                    let messageContent = '';
+                    if (message.type === 'text' && message.text) {
+                      messageContent = message.text.body;
+                    } else if (message.type === 'image' && message.image) {
+                      messageContent = message.image.caption || '[Image]';
+                    } else if (message.type === 'document' && message.document) {
+                      messageContent = message.document.caption || '[Document]';
+                    } else if (message.type === 'audio') {
+                      messageContent = '[Audio]';
+                    } else if (message.type === 'video' && message.video) {
+                      messageContent = message.video.caption || '[Video]';
+                    } else if (message.type === 'sticker') {
+                      messageContent = '[Sticker]';
+                    } else if (message.type === 'location' && message.location) {
+                      messageContent = `[Location: ${message.location.latitude}, ${message.location.longitude}]`;
+                    } else if (message.type === 'contacts') {
+                      messageContent = '[Contact]';
+                    } else {
+                      messageContent = `[${message.type}]`;
+                    }
+
+                    // Save message to database
+                    try {
+                      const savedMessage = await MessageService.create({
+                        userId,
+                        senderNumber: message.from,
+                        messageType: message.type,
+                        messageContent,
+                        direction: 'incoming',
+                        replyStatus: 'pending',
+                        whatsappMessageId: message.id,
+                        receivedAt: new Date(parseInt(message.timestamp) * 1000)
+                      });
+                      console.log('✅ Message saved to database:', savedMessage.id);
+                      
+                      // TODO: 
+                      // 1. Check for campaign matches for this specific user
+                      // 2. Send auto-reply if needed
+                    } catch (dbError) {
+                      console.error('❌ Failed to save message to database:', dbError);
+                    }
                   }
                 }
 
