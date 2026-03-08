@@ -1,6 +1,6 @@
 // Export all schemas from this central index file
-export * from './users.schema.js';
-export * from './wa-credentials.schema.js';
-export * from './webhook-configs.schema.js';
-export * from './campaigns.schema.js';
-export * from './messages.schema.js';
+export * from './users.schema';
+export * from './wa-credentials.schema';
+export * from './webhook-configs.schema';
+export * from './campaigns.schema';
+export * from './messages.schema';
