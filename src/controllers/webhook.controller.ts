@@ -371,23 +371,15 @@ export class WebhookController {
 
                       console.log('✅ Active campaign found:', activeCampaign.name);
 
-                      // Save incoming message to database with campaign ID
-                      const savedMessage = await MessageService.create({
-                        userId,
-                        campaignId: activeCampaign.id,
-                        senderNumber: message.from,
-                        messageType: message.type,
-                        messageContent,
-                        direction: 'incoming',
-                        replyStatus: 'pending',
-                        whatsappMessageId: message.id,
-                        receivedAt: new Date(parseInt(message.timestamp) * 1000)
-                      });
-                      console.log('✅ Incoming message saved to database:', savedMessage.id);
+                      // Send auto-reply first, then save with result
+                      let replyStatus: 'pending' | 'sent' | 'failed' = 'pending';
+                      let replyMessageId: string | null = null;
+                      let replyContent: string | null = null;
 
-                      // Send auto-reply using campaign's fixedReply
                       if (activeCampaign.fixedReply) {
                         console.log('📤 Sending auto-reply to:', message.from);
+                        replyContent = activeCampaign.fixedReply;
+                        
                         const sendResult = await WhatsAppService.sendTextMessage(
                           userId,
                           message.from,
@@ -396,35 +388,35 @@ export class WebhookController {
 
                         if (sendResult.success) {
                           console.log('✅ Auto-reply sent successfully, messageId:', sendResult.messageId);
-
-                          // Save outgoing reply message to database
-                          const replyMessage = await MessageService.create({
-                            userId,
-                            campaignId: activeCampaign.id,
-                            senderNumber: message.from, // The recipient of our reply
-                            messageType: 'text',
-                            messageContent: activeCampaign.fixedReply,
-                            direction: 'outgoing',
-                            replyStatus: 'sent',
-                            whatsappMessageId: sendResult.messageId || null,
-                            receivedAt: new Date()
-                          });
-                          console.log('✅ Outgoing reply saved to database:', replyMessage.id);
-
-                          // Update incoming message status to 'replied'
-                          await MessageService.updateReplyStatus(savedMessage.id, 'replied');
+                          replyStatus = 'sent';
+                          replyMessageId = sendResult.messageId || null;
 
                           // Increment campaign message count
                           await CampaignService.incrementMessageCount(activeCampaign.id);
                           console.log('✅ Campaign message count incremented');
                         } else {
                           console.error('❌ Failed to send auto-reply:', sendResult.error);
-                          // Update message status to 'failed'
-                          await MessageService.updateReplyStatus(savedMessage.id, 'failed');
+                          replyStatus = 'failed';
                         }
                       } else {
                         console.log('⚠️  Campaign has no fixedReply configured');
                       }
+
+                      // Save single message record with incoming message + reply info
+                      const savedMessage = await MessageService.create({
+                        userId,
+                        campaignId: activeCampaign.id,
+                        senderNumber: message.from,
+                        messageType: message.type,
+                        messageContent,
+                        replyContent,
+                        replyStatus,
+                        whatsappMessageId: message.id,
+                        replyMessageId,
+                        receivedAt: new Date(parseInt(message.timestamp) * 1000)
+                      });
+                      console.log('✅ Message saved to database:', savedMessage.id, '| Reply status:', replyStatus);
+
                     } catch (dbError) {
                       console.error('❌ Failed to process message:', dbError);
                     }
