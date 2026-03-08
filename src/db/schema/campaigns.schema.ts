@@ -1,5 +1,5 @@
 import { pgTable, text, timestamp, uuid, boolean, integer } from 'drizzle-orm/pg-core';
-import { users } from './users.schema.js';
+import { users } from './users.schema';
 
 // Campaigns table - Stores auto-reply campaigns
 export const campaigns = pgTable('campaigns', {

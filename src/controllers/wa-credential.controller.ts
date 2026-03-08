@@ -14,15 +14,15 @@ export class WaCredentialController {
         businessId,
         phoneNumberId,
         accessToken,
-        whatsappUserId,
+        appId,
         phoneNumber
       } = req.body;
 
       // Validate required fields
-      if (!userId || !businessId || !phoneNumberId || !accessToken || !whatsappUserId || !phoneNumber) {
+      if (!userId || !businessId || !phoneNumberId || !accessToken || !appId || !phoneNumber) {
         return res.status(400).json({
           success: false,
-          message: 'All fields are required: userId, businessId, phoneNumberId, accessToken, whatsappUserId, phoneNumber'
+          message: 'All fields are required: userId, businessId, phoneNumberId, accessToken, appId, phoneNumber'
         });
       }
 
@@ -50,7 +50,7 @@ export class WaCredentialController {
         businessId: businessId.trim(),
         phoneNumberId: phoneNumberId.trim(),
         accessToken: accessToken.trim(),
-        whatsappUserId: whatsappUserId.trim(),
+        appId: appId.trim(),
         phoneNumber: phoneNumber.trim()
       });
 

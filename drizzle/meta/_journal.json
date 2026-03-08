@@ -22,6 +22,13 @@
       "when": 1768289097947,
       "tag": "0002_daily_hex",
       "breakpoints": true
+    },
+    {
+      "idx": 3,
+      "version": "7",
+      "when": 1772988349719,
+      "tag": "0003_wakeful_doomsday",
+      "breakpoints": true
     }
   ]
 }

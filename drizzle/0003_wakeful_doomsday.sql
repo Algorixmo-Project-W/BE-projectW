@@ -1,0 +1,1 @@
+ALTER TABLE "wa_credentials" RENAME COLUMN "whatsapp_user_id" TO "app_id";

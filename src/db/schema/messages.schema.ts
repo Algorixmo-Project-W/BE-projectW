@@ -1,6 +1,6 @@
 import { pgTable, text, timestamp, uuid } from 'drizzle-orm/pg-core';
-import { users } from './users.schema.js';
-import { campaigns } from './campaigns.schema.js';
+import { users } from './users.schema';
+import { campaigns } from './campaigns.schema';
 
 // Messages table - Stores incoming and outgoing messages
 export const messages = pgTable('messages', {

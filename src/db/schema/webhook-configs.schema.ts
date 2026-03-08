@@ -1,5 +1,5 @@
 import { pgTable, text, timestamp, uuid, boolean } from 'drizzle-orm/pg-core';
-import { users } from './users.schema.js';
+import { users } from './users.schema';
 
 // Webhook Configurations table - Stores webhook callback URLs and verify tokens
 export const webhookConfigs = pgTable('webhook_configs', {
