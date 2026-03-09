@@ -9,13 +9,21 @@ export class CampaignController {
    */
   static async create(req: Request, res: Response) {
     try {
-      const { userId, name, fixedReply, isActive } = req.body;
+      const { userId, name, fixedReply, isActive, replyType, replyImageUrl } = req.body;
 
       // Validate required fields
       if (!userId || !name || !fixedReply) {
         return res.status(400).json({
           success: false,
           message: 'userId, name, and fixedReply are required'
+        });
+      }
+
+      // Validate replyType if image, replyImageUrl is required
+      if (replyType === 'image' && !replyImageUrl) {
+        return res.status(400).json({
+          success: false,
+          message: 'replyImageUrl is required when replyType is image'
         });
       }
 
@@ -37,6 +45,8 @@ export class CampaignController {
         userId,
         name: name.trim(),
         fixedReply: fixedReply.trim(),
+        replyType: replyType || 'text',
+        replyImageUrl: replyImageUrl || null,
         isActive: isActive || false
       });
 
@@ -115,7 +125,7 @@ export class CampaignController {
   static async update(req: Request, res: Response) {
     try {
       const { id } = req.params;
-      const { name, fixedReply, isActive } = req.body;
+      const { name, fixedReply, isActive, replyType, replyImageUrl } = req.body;
 
       const existingCampaign = await CampaignService.findById(id);
       if (!existingCampaign) {
@@ -134,6 +144,8 @@ export class CampaignController {
       if (name !== undefined) updateData.name = name.trim();
       if (fixedReply !== undefined) updateData.fixedReply = fixedReply.trim();
       if (isActive !== undefined) updateData.isActive = isActive;
+      if (replyType !== undefined) updateData.replyType = replyType;
+      if (replyImageUrl !== undefined) updateData.replyImageUrl = replyImageUrl;
 
       if (Object.keys(updateData).length === 0) {
         return res.status(400).json({
