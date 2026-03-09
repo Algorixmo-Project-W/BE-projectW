@@ -1,5 +1,5 @@
 import { InferSelectModel, InferInsertModel } from 'drizzle-orm';
-import { users, waCredentials, webhookConfigs, campaigns, messages } from '../db/schema/index.js';
+import { users, waCredentials, webhookConfigs, campaigns, messages, uploads } from '../db/schema/index.js';
 
 // User types
 export type User = InferSelectModel<typeof users>;
@@ -21,6 +21,10 @@ export type NewCampaign = InferInsertModel<typeof campaigns>;
 export type Message = InferSelectModel<typeof messages>;
 export type NewMessage = InferInsertModel<typeof messages>;
 
+// Upload types
+export type Upload = InferSelectModel<typeof uploads>;
+export type NewUpload = InferInsertModel<typeof uploads>;
+
 // Partial update types
 export type UpdateUser = Partial<Omit<NewUser, 'id' | 'createdAt'>>;
 export type UpdateWaCredential = Partial<Omit<NewWaCredential, 'id' | 'createdAt'>>;
@@ -33,6 +37,9 @@ export type SafeUser = Omit<User, 'passwordHash'>;
 
 // WhatsApp Credentials without sensitive data (for API responses)
 export type SafeWaCredential = Omit<WaCredential, 'accessToken'>;
+
+// Upload without file data (for list responses)
+export type SafeUpload = Omit<Upload, 'fileData'>;
 
 // Webhook Config for API responses
 export type SafeWebhookConfig = WebhookConfig;

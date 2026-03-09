@@ -377,13 +377,20 @@ export class WebhookController {
                       let replyContent: string | null = null;
 
                       if (activeCampaign.fixedReply) {
-                        console.log('📤 Sending auto-reply to:', message.from);
-                        replyContent = activeCampaign.fixedReply;
+                        const replyType = (activeCampaign.replyType || 'text') as 'text' | 'image';
+                        console.log('📤 Sending auto-reply (' + replyType + ') to:', message.from);
                         
-                        const sendResult = await WhatsAppService.sendTextMessage(
+                        // For image type, include image URL in reply content for logging
+                        replyContent = replyType === 'image' && activeCampaign.replyImageUrl
+                          ? `[Image: ${activeCampaign.replyImageUrl}] ${activeCampaign.fixedReply}`
+                          : activeCampaign.fixedReply;
+                        
+                        const sendResult = await WhatsAppService.sendReply(
                           userId,
                           message.from,
-                          activeCampaign.fixedReply
+                          replyType,
+                          activeCampaign.fixedReply,
+                          activeCampaign.replyImageUrl
                         );
 
                         if (sendResult.success) {

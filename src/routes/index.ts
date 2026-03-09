@@ -5,6 +5,7 @@ import waCredentialRoutes from './wa-credential.routes.js';
 import webhookRoutes from './webhook.routes.js';
 import campaignRoutes from './campaign.routes.js';
 import messageRoutes from './message.routes.js';
+import uploadRoutes from './upload.routes.js';
 
 const router = Router();
 
@@ -15,5 +16,6 @@ router.use('/api/wa-credentials', waCredentialRoutes);
 router.use('/api/webhook', webhookRoutes);
 router.use('/api/campaigns', campaignRoutes);
 router.use('/api/messages', messageRoutes);
+router.use('/api/uploads', uploadRoutes);
 
 export default router;

@@ -36,6 +36,13 @@
       "when": 1772992128780,
       "tag": "0004_update-messages-schema",
       "breakpoints": true
+    },
+    {
+      "idx": 5,
+      "version": "7",
+      "when": 1773059136408,
+      "tag": "0005_flat_typhoid_mary",
+      "breakpoints": true
     }
   ]
 }
