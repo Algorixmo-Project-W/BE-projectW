@@ -43,5 +43,41 @@ export class AiAgentService {
     const [deleted] = await db.delete(aiAgents).where(eq(aiAgents.id, id)).returning();
     return deleted;
   }
+
+  /**
+   * Generate AI reply using OpenAI gpt-4o-mini
+   */
+  static async generateReply(
+    agent: { name: string; agentTitle: string; instructions: string },
+    incomingMessage: string,
+    openaiApiKey: string
+  ): Promise<string> {
+    const systemPrompt = `You are ${agent.name}, a ${agent.agentTitle}.\n\n${agent.instructions}\n\nKeep your reply concise and friendly. Do not use markdown formatting.`;
+
+    const response = await fetch('https://api.openai.com/v1/chat/completions', {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${openaiApiKey}`,
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({
+        model: 'gpt-4o-mini',
+        messages: [
+          { role: 'system', content: systemPrompt },
+          { role: 'user', content: incomingMessage }
+        ],
+        max_tokens: 300,
+        temperature: 0.7
+      })
+    });
+
+    const data = await response.json() as any;
+
+    if (!response.ok) {
+      throw new Error(data.error?.message || 'OpenAI API error');
+    }
+
+    return data.choices[0].message.content.trim();
+  }
 }
 

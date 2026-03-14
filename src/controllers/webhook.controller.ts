@@ -4,6 +4,7 @@ import { UserService } from '../services/user.service.js';
 import { MessageService } from '../services/message.service.js';
 import { CampaignService } from '../services/campaign.service.js';
 import { WhatsAppService } from '../services/whatsapp.service.js';
+import { AiAgentService } from '../services/ai-agent.service.js';
 
 export class WebhookController {
   /**
@@ -376,19 +377,46 @@ export class WebhookController {
                       let replyMessageId: string | null = null;
                       let replyContent: string | null = null;
 
-                      if (activeCampaign.fixedReply) {
-                        const replyType = (activeCampaign.replyType || 'text') as 'text' | 'image';
+                      const replyType = (activeCampaign.replyType || 'text') as 'text' | 'image' | 'ai';
+
+                      if (replyType === 'ai' && activeCampaign.aiAgentId && activeCampaign.openaiApiKey) {
+                        // AI-powered reply
+                        console.log('🤖 Generating AI reply for:', message.from);
+                        try {
+                          const agent = await AiAgentService.findById(activeCampaign.aiAgentId);
+                          if (agent) {
+                            replyContent = await AiAgentService.generateReply(agent, messageContent, activeCampaign.openaiApiKey);
+                            console.log('🤖 AI reply generated:', replyContent);
+
+                            const sendResult = await WhatsAppService.sendTextMessage(userId, message.from, replyContent);
+                            if (sendResult.success) {
+                              replyStatus = 'sent';
+                              replyMessageId = sendResult.messageId || null;
+                              await CampaignService.incrementMessageCount(activeCampaign.id);
+                            } else {
+                              console.error('❌ Failed to send AI reply:', sendResult.error);
+                              replyStatus = 'failed';
+                            }
+                          } else {
+                            console.error('❌ AI agent not found:', activeCampaign.aiAgentId);
+                            replyStatus = 'failed';
+                          }
+                        } catch (aiError: any) {
+                          console.error('❌ AI generation failed:', aiError.message);
+                          replyStatus = 'failed';
+                        }
+                      } else if (activeCampaign.fixedReply) {
+                        // Fixed text or image reply
                         console.log('📤 Sending auto-reply (' + replyType + ') to:', message.from);
-                        
-                        // For image type, include image URL in reply content for logging
+
                         replyContent = replyType === 'image' && activeCampaign.replyImageUrl
                           ? `[Image: ${activeCampaign.replyImageUrl}] ${activeCampaign.fixedReply}`
                           : activeCampaign.fixedReply;
-                        
+
                         const sendResult = await WhatsAppService.sendReply(
                           userId,
                           message.from,
-                          replyType,
+                          replyType as 'text' | 'image',
                           activeCampaign.fixedReply,
                           activeCampaign.replyImageUrl
                         );
@@ -397,16 +425,13 @@ export class WebhookController {
                           console.log('✅ Auto-reply sent successfully, messageId:', sendResult.messageId);
                           replyStatus = 'sent';
                           replyMessageId = sendResult.messageId || null;
-
-                          // Increment campaign message count
                           await CampaignService.incrementMessageCount(activeCampaign.id);
-                          console.log('✅ Campaign message count incremented');
                         } else {
                           console.error('❌ Failed to send auto-reply:', sendResult.error);
                           replyStatus = 'failed';
                         }
                       } else {
-                        console.log('⚠️  Campaign has no fixedReply configured');
+                        console.log('⚠️  Campaign has no reply configured');
                       }
 
                       // Save single message record with incoming message + reply info

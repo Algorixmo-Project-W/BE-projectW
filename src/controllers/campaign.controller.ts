@@ -9,31 +9,31 @@ export class CampaignController {
    */
   static async create(req: Request, res: Response) {
     try {
-      const { userId, name, fixedReply, isActive, replyType, replyImageUrl } = req.body;
+      const { userId, name, fixedReply, isActive, replyType, replyImageUrl, aiAgentId, openaiApiKey } = req.body;
 
       // Validate required fields
-      if (!userId || !name || !fixedReply) {
+      if (!userId || !name) {
         return res.status(400).json({
           success: false,
-          message: 'userId, name, and fixedReply are required'
+          message: 'userId and name are required'
         });
       }
 
-      // Validate replyType if image, replyImageUrl is required
+      // Validate per replyType
       if (replyType === 'image' && !replyImageUrl) {
-        return res.status(400).json({
-          success: false,
-          message: 'replyImageUrl is required when replyType is image'
-        });
+        return res.status(400).json({ success: false, message: 'replyImageUrl is required when replyType is image' });
+      }
+      if (replyType === 'ai' && (!aiAgentId || !openaiApiKey)) {
+        return res.status(400).json({ success: false, message: 'aiAgentId and openaiApiKey are required when replyType is ai' });
+      }
+      if (replyType !== 'ai' && !fixedReply) {
+        return res.status(400).json({ success: false, message: 'fixedReply is required for text and image replyType' });
       }
 
       // Validate user exists
       const user = await UserService.findById(userId);
       if (!user) {
-        return res.status(404).json({
-          success: false,
-          message: 'User not found'
-        });
+        return res.status(404).json({ success: false, message: 'User not found' });
       }
 
       // If setting as active, deactivate all other campaigns first
@@ -44,9 +44,11 @@ export class CampaignController {
       const newCampaign = await CampaignService.create({
         userId,
         name: name.trim(),
-        fixedReply: fixedReply.trim(),
         replyType: replyType || 'text',
+        fixedReply: fixedReply?.trim() || null,
         replyImageUrl: replyImageUrl || null,
+        aiAgentId: aiAgentId || null,
+        openaiApiKey: openaiApiKey?.trim() || null,
         isActive: isActive || false
       });
 
@@ -57,10 +59,7 @@ export class CampaignController {
       });
     } catch (error) {
       console.error('Error creating campaign:', error);
-      return res.status(500).json({
-        success: false,
-        message: 'Internal server error'
-      });
+      return res.status(500).json({ success: false, message: 'Internal server error' });
     }
   }
 
@@ -125,14 +124,11 @@ export class CampaignController {
   static async update(req: Request, res: Response) {
     try {
       const { id } = req.params;
-      const { name, fixedReply, isActive, replyType, replyImageUrl } = req.body;
+      const { name, fixedReply, isActive, replyType, replyImageUrl, aiAgentId, openaiApiKey } = req.body;
 
       const existingCampaign = await CampaignService.findById(id);
       if (!existingCampaign) {
-        return res.status(404).json({
-          success: false,
-          message: 'Campaign not found'
-        });
+        return res.status(404).json({ success: false, message: 'Campaign not found' });
       }
 
       // If activating this campaign, deactivate all others first
@@ -142,16 +138,15 @@ export class CampaignController {
 
       const updateData: any = {};
       if (name !== undefined) updateData.name = name.trim();
-      if (fixedReply !== undefined) updateData.fixedReply = fixedReply.trim();
+      if (fixedReply !== undefined) updateData.fixedReply = fixedReply?.trim() || null;
       if (isActive !== undefined) updateData.isActive = isActive;
       if (replyType !== undefined) updateData.replyType = replyType;
       if (replyImageUrl !== undefined) updateData.replyImageUrl = replyImageUrl;
+      if (aiAgentId !== undefined) updateData.aiAgentId = aiAgentId;
+      if (openaiApiKey !== undefined) updateData.openaiApiKey = openaiApiKey?.trim() || null;
 
       if (Object.keys(updateData).length === 0) {
-        return res.status(400).json({
-          success: false,
-          message: 'No valid fields to update'
-        });
+        return res.status(400).json({ success: false, message: 'No valid fields to update' });
       }
 
       const updatedCampaign = await CampaignService.update(id, updateData);
@@ -163,10 +158,7 @@ export class CampaignController {
       });
     } catch (error) {
       console.error('Error updating campaign:', error);
-      return res.status(500).json({
-        success: false,
-        message: 'Internal server error'
-      });
+      return res.status(500).json({ success: false, message: 'Internal server error' });
     }
   }
 
