@@ -125,33 +125,21 @@ export class WhatsAppService {
         imagePayload.caption = caption;
       }
 
-      console.log('📤 Sending WhatsApp image:', {
-        to: toNumber,
-        imageUrl,
-        caption: caption || '(no caption)'
-      });
-
-      const requestBody = {
-        messaging_product: 'whatsapp',
-        to: toNumber,
-        type: 'image',
-        image: imagePayload
-      };
-
-      console.log('📦 Request body:', JSON.stringify(requestBody, null, 2));
-
       const response = await fetch(apiUrl, {
         method: 'POST',
         headers: {
           'Authorization': `Bearer ${accessToken}`,
           'Content-Type': 'application/json'
         },
-        body: JSON.stringify(requestBody)
+        body: JSON.stringify({
+          messaging_product: 'whatsapp',
+          to: toNumber,
+          type: 'image',
+          image: imagePayload
+        })
       });
 
       const data = await response.json() as any;
-
-      console.log('📥 WhatsApp API response:', JSON.stringify(data, null, 2));
 
       if (response.ok && data.messages && data.messages[0]) {
         console.log('✅ WhatsApp image sent successfully:', data.messages[0].id);
@@ -163,7 +151,7 @@ export class WhatsAppService {
         console.error('❌ WhatsApp API error:', data);
         return {
           success: false,
-          error: data.error?.message || JSON.stringify(data)
+          error: data.error?.message || 'Unknown error'
         };
       }
     } catch (error) {

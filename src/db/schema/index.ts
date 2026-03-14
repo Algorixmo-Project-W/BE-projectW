@@ -5,3 +5,4 @@ export * from './webhook-configs.schema';
 export * from './campaigns.schema';
 export * from './messages.schema';
 export * from './uploads.schema';
+export * from './ai-agents.schema';

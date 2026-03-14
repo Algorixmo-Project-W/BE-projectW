@@ -1,5 +1,5 @@
 import { InferSelectModel, InferInsertModel } from 'drizzle-orm';
-import { users, waCredentials, webhookConfigs, campaigns, messages, uploads } from '../db/schema/index.js';
+import { users, waCredentials, webhookConfigs, campaigns, messages, uploads, aiAgents } from '../db/schema/index.js';
 
 // User types
 export type User = InferSelectModel<typeof users>;
@@ -25,12 +25,17 @@ export type NewMessage = InferInsertModel<typeof messages>;
 export type Upload = InferSelectModel<typeof uploads>;
 export type NewUpload = InferInsertModel<typeof uploads>;
 
+// AI Agent types
+export type AiAgent = InferSelectModel<typeof aiAgents>;
+export type NewAiAgent = InferInsertModel<typeof aiAgents>;
+
 // Partial update types
 export type UpdateUser = Partial<Omit<NewUser, 'id' | 'createdAt'>>;
 export type UpdateWaCredential = Partial<Omit<NewWaCredential, 'id' | 'createdAt'>>;
 export type UpdateWebhookConfig = Partial<Omit<NewWebhookConfig, 'id' | 'createdAt'>>;
 export type UpdateCampaign = Partial<Omit<NewCampaign, 'id' | 'createdAt'>>;
 export type UpdateMessage = Partial<Omit<NewMessage, 'id' | 'createdAt'>>;
+export type UpdateAiAgent = Partial<Omit<NewAiAgent, 'id' | 'createdAt'>>;
 
 // User without sensitive data (for API responses)
 export type SafeUser = Omit<User, 'passwordHash'>;
