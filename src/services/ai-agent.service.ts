@@ -49,9 +49,11 @@ export class AiAgentService {
    */
   static async generateReply(
     agent: { name: string; agentTitle: string; instructions: string },
-    incomingMessage: string,
-    openaiApiKey: string
+    incomingMessage: string
   ): Promise<string> {
+    const openaiApiKey = process.env.OPENAI_API_KEY;
+    if (!openaiApiKey) throw new Error('OPENAI_API_KEY is not set in environment');
+
     const systemPrompt = `You are ${agent.name}, a ${agent.agentTitle}.\n\n${agent.instructions}\n\nKeep your reply concise and friendly. Do not use markdown formatting.`;
 
     const response = await fetch('https://api.openai.com/v1/chat/completions', {

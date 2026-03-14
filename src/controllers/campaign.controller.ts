@@ -9,7 +9,7 @@ export class CampaignController {
    */
   static async create(req: Request, res: Response) {
     try {
-      const { userId, name, fixedReply, isActive, replyType, replyImageUrl, aiAgentId, openaiApiKey } = req.body;
+      const { userId, name, fixedReply, isActive, replyType, replyImageUrl, aiAgentId } = req.body;
 
       // Validate required fields
       if (!userId || !name) {
@@ -23,8 +23,8 @@ export class CampaignController {
       if (replyType === 'image' && !replyImageUrl) {
         return res.status(400).json({ success: false, message: 'replyImageUrl is required when replyType is image' });
       }
-      if (replyType === 'ai' && (!aiAgentId || !openaiApiKey)) {
-        return res.status(400).json({ success: false, message: 'aiAgentId and openaiApiKey are required when replyType is ai' });
+      if (replyType === 'ai' && !aiAgentId) {
+        return res.status(400).json({ success: false, message: 'aiAgentId is required when replyType is ai' });
       }
       if (replyType !== 'ai' && !fixedReply) {
         return res.status(400).json({ success: false, message: 'fixedReply is required for text and image replyType' });
@@ -48,7 +48,6 @@ export class CampaignController {
         fixedReply: fixedReply?.trim() || null,
         replyImageUrl: replyImageUrl || null,
         aiAgentId: aiAgentId || null,
-        openaiApiKey: openaiApiKey?.trim() || null,
         isActive: isActive || false
       });
 
@@ -124,7 +123,7 @@ export class CampaignController {
   static async update(req: Request, res: Response) {
     try {
       const { id } = req.params;
-      const { name, fixedReply, isActive, replyType, replyImageUrl, aiAgentId, openaiApiKey } = req.body;
+      const { name, fixedReply, isActive, replyType, replyImageUrl, aiAgentId } = req.body;
 
       const existingCampaign = await CampaignService.findById(id);
       if (!existingCampaign) {
@@ -143,7 +142,6 @@ export class CampaignController {
       if (replyType !== undefined) updateData.replyType = replyType;
       if (replyImageUrl !== undefined) updateData.replyImageUrl = replyImageUrl;
       if (aiAgentId !== undefined) updateData.aiAgentId = aiAgentId;
-      if (openaiApiKey !== undefined) updateData.openaiApiKey = openaiApiKey?.trim() || null;
 
       if (Object.keys(updateData).length === 0) {
         return res.status(400).json({ success: false, message: 'No valid fields to update' });

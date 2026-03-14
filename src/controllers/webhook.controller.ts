@@ -379,13 +379,13 @@ export class WebhookController {
 
                       const replyType = (activeCampaign.replyType || 'text') as 'text' | 'image' | 'ai';
 
-                      if (replyType === 'ai' && activeCampaign.aiAgentId && activeCampaign.openaiApiKey) {
+                      if (replyType === 'ai' && activeCampaign.aiAgentId) {
                         // AI-powered reply
                         console.log('🤖 Generating AI reply for:', message.from);
                         try {
                           const agent = await AiAgentService.findById(activeCampaign.aiAgentId);
                           if (agent) {
-                            replyContent = await AiAgentService.generateReply(agent, messageContent, activeCampaign.openaiApiKey);
+                            replyContent = await AiAgentService.generateReply(agent, messageContent);
                             console.log('🤖 AI reply generated:', replyContent);
 
                             const sendResult = await WhatsAppService.sendTextMessage(userId, message.from, replyContent);
