@@ -1,4 +1,4 @@
-import { eq, desc } from 'drizzle-orm';
+import { eq, desc, asc, and, sql } from 'drizzle-orm';
 import { db } from '../db/index.js';
 import { messages } from '../db/schema/index.js';
 import { NewMessage, UpdateMessage } from '../types/database.types.js';
@@ -45,12 +45,70 @@ export class MessageService {
   /**
    * Get messages by phone number for a user
    */
-  static async findByPhoneNumber(userId: string, _phoneNumber: string) {
+  static async findByPhoneNumber(userId: string, phoneNumber: string) {
     return await db
       .select()
       .from(messages)
-      .where(eq(messages.userId, userId))
+      .where(and(eq(messages.userId, userId), eq(messages.senderNumber, phoneNumber)))
       .orderBy(desc(messages.receivedAt));
+  }
+
+  /**
+   * Get all chat threads for a campaign.
+   * Each thread = unique senderNumber with their latest message info.
+   */
+  static async getThreadsByCampaign(campaignId: string) {
+    // Subquery: latest receivedAt per (campaignId, senderNumber)
+    const latestPerSender = db
+      .select({
+        senderNumber: messages.senderNumber,
+        latestAt: sql<Date>`max(${messages.receivedAt})`.as('latest_at'),
+        messageCount: sql<number>`count(*)::int`.as('message_count')
+      })
+      .from(messages)
+      .where(eq(messages.campaignId, campaignId))
+      .groupBy(messages.senderNumber)
+      .as('latest_per_sender');
+
+    // Join back to get the full latest message row
+    const rows = await db
+      .select({
+        senderNumber: messages.senderNumber,
+        messageCount: latestPerSender.messageCount,
+        latestAt: latestPerSender.latestAt,
+        lastMessageContent: messages.messageContent,
+        lastReplyContent: messages.replyContent,
+        lastReplyStatus: messages.replyStatus,
+        lastMessageId: messages.id,
+      })
+      .from(latestPerSender)
+      .innerJoin(
+        messages,
+        and(
+          eq(messages.senderNumber, latestPerSender.senderNumber),
+          eq(messages.receivedAt, latestPerSender.latestAt),
+          eq(messages.campaignId, campaignId)
+        )
+      )
+      .orderBy(desc(latestPerSender.latestAt));
+
+    return rows;
+  }
+
+  /**
+   * Get full message history for a (campaign, senderNumber) thread, oldest-first.
+   */
+  static async getThreadHistory(campaignId: string, senderNumber: string) {
+    return await db
+      .select()
+      .from(messages)
+      .where(
+        and(
+          eq(messages.campaignId, campaignId),
+          eq(messages.senderNumber, senderNumber)
+        )
+      )
+      .orderBy(asc(messages.receivedAt));
   }
 
   /**
