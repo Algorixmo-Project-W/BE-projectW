@@ -228,42 +228,16 @@ export class WebhookController {
       const token = req.query['hub.verify_token'] as string;
       const challenge = req.query['hub.challenge'] as string;
 
-      console.log('🔍 Webhook verification request (dynamic URL):', {
-        userId,
-        mode,
-        hasToken: !!token,
-        hasChallenge: !!challenge
-      });
+      if (mode !== 'subscribe') return res.sendStatus(403);
 
-      // Verify this is a subscribe request
-      if (mode !== 'subscribe') {
-        console.error('❌ Invalid hub.mode:', mode);
-        return res.sendStatus(403);
-      }
-
-      // Find webhook configuration for this user
       const webhook = await WebhookService.findByUserId(userId);
-      
-      if (!webhook) {
-        console.error('❌ Webhook config not found for user:', userId);
-        return res.sendStatus(403);
-      }
+      if (!webhook || !webhook.isActive) return res.sendStatus(403);
 
-      if (!webhook.isActive) {
-        console.error('❌ Webhook is not active for user:', userId);
-        return res.sendStatus(403);
-      }
+      if (token !== webhook.verifyToken) return res.sendStatus(403);
 
-      // Verify token matches
-      if (token !== webhook.verifyToken) {
-        console.error('❌ Token mismatch for user:', userId);
-        return res.sendStatus(403);
-      }
-
-      console.log('✅ Webhook verified successfully for user:', userId);
       return res.status(200).send(challenge);
     } catch (error) {
-      console.error('❌ Error verifying webhook:', error);
+      console.error('Error verifying webhook:', error);
       return res.sendStatus(500);
     }
   }
@@ -279,37 +253,12 @@ export class WebhookController {
       const { userId } = req.params;
       const body = req.body;
 
-      console.log('📨 Incoming WhatsApp webhook (dynamic URL) for user:', userId);
-      console.log('🔥 WEBHOOK EVENT FIELDS 🔥');
-      console.log(req.body.entry?.[0]?.changes?.[0]?.field);
-
       // Verify webhook exists and is active
       const webhook = await WebhookService.findByUserId(userId);
-      if (!webhook) {
-        console.error('❌ Webhook config not found for user:', userId);
-        return res.sendStatus(403);
-      }
+      if (!webhook || !webhook.isActive) return res.sendStatus(403);
 
-      if (!webhook.isActive) {
-        console.error('❌ Webhook is not active for user:', userId);
-        return res.sendStatus(403);
-      }
-
-      console.log('Payload:', JSON.stringify(body, null, 2));
-
-      // Validate webhook payload structure
-      if (!body.object) {
-        console.error('❌ Invalid webhook payload - missing object field');
-        return res.sendStatus(400);
-      }
-
-      if (body.object !== 'whatsapp_business_account') {
-        console.log('⚠️  Unknown webhook object type:', body.object);
-        return res.sendStatus(200);
-      }
-
-      // Extract phone number ID
-      let phoneNumberId: string | null = null;
+      if (!body.object) return res.sendStatus(400);
+      if (body.object !== 'whatsapp_business_account') return res.sendStatus(200);
 
       // Process entries
       if (body.entry && Array.isArray(body.entry)) {
@@ -319,25 +268,9 @@ export class WebhookController {
               const field = change.field;
               const value = change.value;
 
-              if (value.metadata && value.metadata.phone_number_id) {
-                phoneNumberId = value.metadata.phone_number_id;
-                console.log('📞 Phone number ID:', phoneNumberId);
-              }
-
-              console.log(`📬 Processing ${field} change for user:`, userId);
-
               if (field === 'messages') {
                 if (value.messages && Array.isArray(value.messages)) {
                   for (const message of value.messages) {
-                    console.log('💬 New message:', {
-                      userId,
-                      from: message.from,
-                      id: message.id,
-                      type: message.type,
-                      timestamp: message.timestamp,
-                      phoneNumberId
-                    });
-                    
                     // Extract message content based on type
                     let messageContent = '';
                     if (message.type === 'text' && message.text) {
@@ -362,17 +295,9 @@ export class WebhookController {
 
                     // Save message to database
                     try {
-                      // Check if user has an active campaign
                       const activeCampaign = await CampaignService.findActiveByUserId(userId);
-                      
-                      if (!activeCampaign) {
-                        console.log('⚠️  No active campaign for user:', userId, '- Message not saved');
-                        continue; // Skip saving and replying if no active campaign
-                      }
+                      if (!activeCampaign) continue;
 
-                      console.log('✅ Active campaign found:', activeCampaign.name);
-
-                      // Send auto-reply first, then save with result
                       let replyStatus: 'pending' | 'sent' | 'failed' = 'pending';
                       let replyMessageId: string | null = null;
                       let replyContent: string | null = null;
@@ -380,23 +305,16 @@ export class WebhookController {
                       const replyType = (activeCampaign.replyType || 'text') as 'text' | 'image' | 'ai';
 
                       if (replyType === 'ai' && activeCampaign.aiAgentId) {
-                        // AI-powered reply
-                        console.log('🤖 Generating AI reply for:', message.from);
                         try {
                           const agent = await AiAgentService.findById(activeCampaign.aiAgentId);
-                          if (agent) {
-                            // Fetch recent conversation history for this sender
-                            const historyLimit = parseInt(process.env.AI_HISTORY_MESSAGES!,10);
-                            const threadHistory = await MessageService.getThreadHistory(
-                              activeCampaign.id,
-                              message.from
-                            );
-                            // Take the last N messages (oldest-first slice)
+                          if (!agent) {
+                            replyStatus = 'failed';
+                          } else {
+                            const historyLimit = parseInt(process.env.AI_HISTORY_MESSAGES || '5', 10);
+                            const threadHistory = await MessageService.getThreadHistory(activeCampaign.id, message.from);
                             const priorMessages = threadHistory.slice(-historyLimit);
-                            console.log(`🤖 Using ${priorMessages.length} prior messages as context`);
 
                             replyContent = await AiAgentService.generateReply(agent, messageContent, priorMessages);
-                            console.log('🤖 AI reply generated:', replyContent);
 
                             const sendResult = await WhatsAppService.sendTextMessage(userId, message.from, replyContent);
                             if (sendResult.success) {
@@ -404,21 +322,15 @@ export class WebhookController {
                               replyMessageId = sendResult.messageId || null;
                               await CampaignService.incrementMessageCount(activeCampaign.id);
                             } else {
-                              console.error('❌ Failed to send AI reply:', sendResult.error);
+                              console.error('Failed to send AI reply:', sendResult.error);
                               replyStatus = 'failed';
                             }
-                          } else {
-                            console.error('❌ AI agent not found:', activeCampaign.aiAgentId);
-                            replyStatus = 'failed';
                           }
                         } catch (aiError: any) {
-                          console.error('❌ AI generation failed:', aiError.message);
+                          console.error('AI generation failed:', aiError.message);
                           replyStatus = 'failed';
                         }
                       } else if (activeCampaign.fixedReply) {
-                        // Fixed text or image reply
-                        console.log('📤 Sending auto-reply (' + replyType + ') to:', message.from);
-
                         replyContent = replyType === 'image' && activeCampaign.replyImageUrl
                           ? `[Image: ${activeCampaign.replyImageUrl}] ${activeCampaign.fixedReply}`
                           : activeCampaign.fixedReply;
@@ -432,20 +344,16 @@ export class WebhookController {
                         );
 
                         if (sendResult.success) {
-                          console.log('✅ Auto-reply sent successfully, messageId:', sendResult.messageId);
                           replyStatus = 'sent';
                           replyMessageId = sendResult.messageId || null;
                           await CampaignService.incrementMessageCount(activeCampaign.id);
                         } else {
-                          console.error('❌ Failed to send auto-reply:', sendResult.error);
+                          console.error('Failed to send auto-reply:', sendResult.error);
                           replyStatus = 'failed';
                         }
-                      } else {
-                        console.log('⚠️  Campaign has no reply configured');
                       }
 
-                      // Save single message record with incoming message + reply info
-                      const savedMessage = await MessageService.create({
+                      await MessageService.create({
                         userId,
                         campaignId: activeCampaign.id,
                         senderNumber: message.from,
@@ -457,29 +365,12 @@ export class WebhookController {
                         replyMessageId,
                         receivedAt: new Date(parseInt(message.timestamp) * 1000)
                       });
-                      console.log('✅ Message saved to database:', savedMessage.id, '| Reply status:', replyStatus);
 
                     } catch (dbError) {
-                      console.error('❌ Failed to process message:', dbError);
+                      console.error('Failed to process message:', dbError);
                     }
                   }
                 }
-
-                if (value.statuses && Array.isArray(value.statuses)) {
-                  for (const status of value.statuses) {
-                    console.log('📊 Message status update:', {
-                      userId,
-                      id: status.id,
-                      status: status.status,
-                      timestamp: status.timestamp,
-                      phoneNumberId
-                    });
-                    
-                    // TODO: Update message status in database for this user
-                  }
-                }
-              } else {
-                console.log('ℹ️  Unhandled field type:', field);
               }
             }
           }
@@ -488,7 +379,7 @@ export class WebhookController {
 
       return res.sendStatus(200);
     } catch (error) {
-      console.error('❌ Error handling webhook:', error);
+      console.error('Error handling webhook:', error);
       return res.sendStatus(200);
     }
   }
