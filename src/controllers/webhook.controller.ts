@@ -385,7 +385,17 @@ export class WebhookController {
                         try {
                           const agent = await AiAgentService.findById(activeCampaign.aiAgentId);
                           if (agent) {
-                            replyContent = await AiAgentService.generateReply(agent, messageContent);
+                            // Fetch recent conversation history for this sender
+                            const historyLimit = parseInt(process.env.AI_HISTORY_MESSAGES!,10);
+                            const threadHistory = await MessageService.getThreadHistory(
+                              activeCampaign.id,
+                              message.from
+                            );
+                            // Take the last N messages (oldest-first slice)
+                            const priorMessages = threadHistory.slice(-historyLimit);
+                            console.log(`🤖 Using ${priorMessages.length} prior messages as context`);
+
+                            replyContent = await AiAgentService.generateReply(agent, messageContent, priorMessages);
                             console.log('🤖 AI reply generated:', replyContent);
 
                             const sendResult = await WhatsAppService.sendTextMessage(userId, message.from, replyContent);

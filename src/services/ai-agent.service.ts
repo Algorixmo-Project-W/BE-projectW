@@ -45,16 +45,29 @@ export class AiAgentService {
   }
 
   /**
-   * Generate AI reply using OpenAI gpt-4o-mini
+   * Generate AI reply using OpenAI gpt-4o-mini.
+   * @param agent       - AI agent config (name, agentTitle, instructions)
+   * @param incomingMessage - The new message just received
+   * @param priorMessages   - Previous messages in this thread, oldest-first
    */
   static async generateReply(
     agent: { name: string; agentTitle: string; instructions: string },
-    incomingMessage: string
+    incomingMessage: string,
+    priorMessages: Array<{ messageContent: string; replyContent: string | null }> = []
   ): Promise<string> {
     const openaiApiKey = process.env.OPENAI_API_KEY;
     if (!openaiApiKey) throw new Error('OPENAI_API_KEY is not set in environment');
 
     const systemPrompt = `You are ${agent.name}, a ${agent.agentTitle}.\n\n${agent.instructions}\n\nKeep your reply concise and friendly. Do not use markdown formatting.`;
+
+    // Build conversation turns from prior messages
+    const historyMessages: Array<{ role: 'user' | 'assistant'; content: string }> = [];
+    for (const msg of priorMessages) {
+      historyMessages.push({ role: 'user', content: msg.messageContent });
+      if (msg.replyContent) {
+        historyMessages.push({ role: 'assistant', content: msg.replyContent });
+      }
+    }
 
     const response = await fetch('https://api.openai.com/v1/chat/completions', {
       method: 'POST',
@@ -66,6 +79,7 @@ export class AiAgentService {
         model: 'gpt-4o-mini',
         messages: [
           { role: 'system', content: systemPrompt },
+          ...historyMessages,
           { role: 'user', content: incomingMessage }
         ],
         max_tokens: 300,
