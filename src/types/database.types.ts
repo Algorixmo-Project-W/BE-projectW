@@ -1,5 +1,5 @@
 import { InferSelectModel, InferInsertModel } from 'drizzle-orm';
-import { users, waCredentials, webhookConfigs, campaigns, messages, uploads, aiAgents } from '../db/schema/index.js';
+import { users, waCredentials, webhookConfigs, campaigns, messages, uploads, aiAgents, aiIntegrations } from '../db/schema/index.js';
 
 // User types
 export type User = InferSelectModel<typeof users>;
@@ -28,6 +28,11 @@ export type NewUpload = InferInsertModel<typeof uploads>;
 // AI Agent types
 export type AiAgent = InferSelectModel<typeof aiAgents>;
 export type NewAiAgent = InferInsertModel<typeof aiAgents>;
+
+// AI Integration types
+export type AiIntegration = InferSelectModel<typeof aiIntegrations>;
+export type NewAiIntegration = InferInsertModel<typeof aiIntegrations>;
+export type UpdateAiIntegration = Partial<Pick<NewAiIntegration, 'zoom' | 'hubspot' | 'google'>>;
 
 // Partial update types
 export type UpdateUser = Partial<Omit<NewUser, 'id' | 'createdAt'>>;

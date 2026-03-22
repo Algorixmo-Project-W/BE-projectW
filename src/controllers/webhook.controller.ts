@@ -5,6 +5,7 @@ import { MessageService } from '../services/message.service.js';
 import { CampaignService } from '../services/campaign.service.js';
 import { WhatsAppService } from '../services/whatsapp.service.js';
 import { AiAgentService } from '../services/ai-agent.service.js';
+import { AiIntegrationService } from '../services/ai-integration.service.js';
 
 export class WebhookController {
   /**
@@ -314,7 +315,8 @@ export class WebhookController {
                             const threadHistory = await MessageService.getThreadHistory(activeCampaign.id, message.from);
                             const priorMessages = threadHistory.slice(-historyLimit);
 
-                            replyContent = await AiAgentService.generateReply(agent, messageContent, priorMessages);
+                            const integrations = await AiIntegrationService.findByAgentId(agent.id);
+                            replyContent = await AiAgentService.generateReply(agent, messageContent, priorMessages, integrations);
 
                             const sendResult = await WhatsAppService.sendTextMessage(userId, message.from, replyContent);
                             if (sendResult.success) {

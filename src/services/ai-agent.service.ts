@@ -53,12 +53,22 @@ export class AiAgentService {
   static async generateReply(
     agent: { name: string; agentTitle: string; instructions: string },
     incomingMessage: string,
-    priorMessages: Array<{ messageContent: string; replyContent: string | null }> = []
+    priorMessages: Array<{ messageContent: string; replyContent: string | null }> = [],
+    integrations?: { zoom?: string | null; hubspot?: string | null; google?: string | null } | null
   ): Promise<string> {
     const openaiApiKey = process.env.OPENAI_API_KEY;
     if (!openaiApiKey) throw new Error('OPENAI_API_KEY is not set in environment');
 
-    const systemPrompt = `You are ${agent.name}, a ${agent.agentTitle}.\n\n${agent.instructions}\n\nKeep your reply concise and friendly. Do not use markdown formatting.`;
+    // Build meeting links instruction
+    const links: string[] = [];
+    if (integrations?.google) links.push(`Google Calendar: ${integrations.google}`);
+    if (integrations?.zoom) links.push(`Zoom: ${integrations.zoom}`);
+    if (integrations?.hubspot) links.push(`HubSpot: ${integrations.hubspot}`);
+    const meetingInstruction = links.length > 0
+      ? `\n\nIf the user expresses interest in a meeting, consultation, demo, or booking, share the relevant booking link:\n${links.join('\n')}`
+      : '';
+
+    const systemPrompt = `You are ${agent.name}, a ${agent.agentTitle}.\n\n${agent.instructions}${meetingInstruction}\n\nKeep your reply concise and friendly. Do not use markdown formatting.`;
 
     // Build conversation turns from prior messages
     const historyMessages: Array<{ role: 'user' | 'assistant'; content: string }> = [];

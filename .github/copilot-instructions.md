@@ -90,3 +90,4 @@ Each page has matching CSS file: `src/styles/[page-name].css`
 ## Do NOT
 - Create test files unless explicitly requested
 - Use `.js` extensions in schema file imports (breaks drizzle-kit)
+- Run terminal commands directly — always provide the command as a code block for the user to run themselves
