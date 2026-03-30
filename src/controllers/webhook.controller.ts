@@ -6,6 +6,7 @@ import { CampaignService } from '../services/campaign.service.js';
 import { WhatsAppService } from '../services/whatsapp.service.js';
 import { AiAgentService } from '../services/ai-agent.service.js';
 import { AiIntegrationService } from '../services/ai-integration.service.js';
+import { ContactService } from '../services/contact.service.js';
 
 export class WebhookController {
   /**
@@ -300,6 +301,17 @@ export class WebhookController {
 
                     // Save message to database
                     try {
+                      // Extract name and upsert contact
+                      const rawContactName = change.value.contacts?.[0]?.profile?.name;
+                      const customerName = rawContactName && rawContactName.length > 0 ? rawContactName : null;
+                      if (customerName) {
+                        try {
+                          await ContactService.upsert(userId, message.from, customerName);
+                        } catch (contactErr) {
+                          console.error('Failed to upsert contact:', contactErr);
+                        }
+                      }
+
                       const activeCampaign = await CampaignService.findActiveByUserId(userId);
                       if (!activeCampaign) continue;
 
@@ -319,8 +331,17 @@ export class WebhookController {
                             const threadHistory = await MessageService.getThreadHistory(activeCampaign.id, message.from);
                             const priorMessages = threadHistory.slice(-historyLimit);
 
+                            // Only pass custom name if there's no prior history (first message greeting)
+                            const passCustomerName = threadHistory.length === 0 ? customerName : null;
+
                             const integrations = await AiIntegrationService.findByAgentId(agent.id);
-                            replyContent = await AiAgentService.generateReply(agent, messageContent, priorMessages, integrations);
+                            replyContent = await AiAgentService.generateReply(
+                              agent,
+                              messageContent,
+                              priorMessages,
+                              integrations,
+                              passCustomerName
+                            );
 
                             const sendResult = await WhatsAppService.sendTextMessage(userId, message.from, replyContent);
                             if (sendResult.success) {

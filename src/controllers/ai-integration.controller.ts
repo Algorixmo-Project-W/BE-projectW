@@ -19,7 +19,7 @@ export class AiIntegrationController {
       const integration = await AiIntegrationService.findByAgentId(agentId);
       return res.status(200).json({
         success: true,
-        data: integration || { aiAgentId: agentId, zoom: null, hubspot: null, google: null }
+        data: integration || { aiAgentId: agentId, zoom: null, hubspot: null, google: null, useCustomerName: false }
       });
     } catch (error) {
       console.error('Error getting integrations:', error);
@@ -30,12 +30,12 @@ export class AiIntegrationController {
   /**
    * Set (upsert) integrations for an AI agent
    * PUT /api/ai-agents/:agentId/integrations
-   * Body: { zoom?, hubspot?, google? }
+   * Body: { zoom?, hubspot?, google?, useCustomerName? }
    */
   static async upsert(req: Request, res: Response) {
     try {
       const { agentId } = req.params;
-      const { zoom, hubspot, google } = req.body;
+      const { zoom, hubspot, google, useCustomerName } = req.body;
 
       const agent = await AiAgentService.findById(agentId);
       if (!agent) {
@@ -45,7 +45,8 @@ export class AiIntegrationController {
       const integration = await AiIntegrationService.upsert(agentId, {
         zoom: zoom?.trim() || null,
         hubspot: hubspot?.trim() || null,
-        google: google?.trim() || null
+        google: google?.trim() || null,
+        ...(useCustomerName !== undefined && { useCustomerName })
       });
 
       return res.status(200).json({

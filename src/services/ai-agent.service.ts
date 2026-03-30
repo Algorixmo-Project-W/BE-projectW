@@ -54,7 +54,8 @@ export class AiAgentService {
     agent: { name: string; agentTitle: string; instructions: string },
     incomingMessage: string,
     priorMessages: Array<{ messageContent: string; replyContent: string | null }> = [],
-    integrations?: { zoom?: string | null; hubspot?: string | null; google?: string | null } | null
+    integrations?: { zoom?: string | null; hubspot?: string | null; google?: string | null; useCustomerName?: boolean } | null,
+    customerName?: string | null
   ): Promise<string> {
     const openaiApiKey = process.env.OPENAI_API_KEY;
     if (!openaiApiKey) throw new Error('OPENAI_API_KEY is not set in environment');
@@ -68,7 +69,11 @@ export class AiAgentService {
       ? `\n\nIf the user expresses interest in a meeting, consultation, demo, or booking, share the relevant booking link:\n${links.join('\n')}`
       : '';
 
-    const systemPrompt = `You are ${agent.name}, a ${agent.agentTitle}.\n\n${agent.instructions}${meetingInstruction}\n\nKeep your reply concise and friendly. Do not use markdown formatting.`;
+    const nameInstruction = integrations?.useCustomerName && customerName
+      ? `\n\nThe user's name is ${customerName}. Greet or address them by their name.`
+      : '';
+
+    const systemPrompt = `You are ${agent.name}, a ${agent.agentTitle}.\n\n${agent.instructions}${meetingInstruction}${nameInstruction}\n\nKeep your reply concise and friendly. Do not use markdown formatting.`;
 
     // Build conversation turns from prior messages
     const historyMessages: Array<{ role: 'user' | 'assistant'; content: string }> = [];
