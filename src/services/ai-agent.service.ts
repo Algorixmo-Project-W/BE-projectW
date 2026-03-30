@@ -70,7 +70,7 @@ export class AiAgentService {
       : '';
 
     const nameInstruction = integrations?.useCustomerName && customerName
-      ? `\n\nThe user's name is ${customerName}. Greet or address them by their name.`
+      ? `\n\nSince this is the user's first message, you MUST start your reply exactly with "Hi ${customerName}, ".`
       : '';
 
     const systemPrompt = `You are ${agent.name}, a ${agent.agentTitle}.\n\n${agent.instructions}${meetingInstruction}${nameInstruction}\n\nKeep your reply concise and friendly. Do not use markdown formatting.`;
