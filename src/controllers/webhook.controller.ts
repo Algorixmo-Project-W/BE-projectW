@@ -254,6 +254,10 @@ export class WebhookController {
       const { userId } = req.params;
       const body = req.body;
 
+      console.log(`\n[Webhook] Incoming WhatsApp payload for userId: ${userId}`);
+      console.log(JSON.stringify(body, null, 2));
+      console.log('--------------------------------------------------\n');
+
       // Verify webhook exists and is active
       const webhook = await WebhookService.findByUserId(userId);
       if (!webhook || !webhook.isActive) return res.sendStatus(403);
