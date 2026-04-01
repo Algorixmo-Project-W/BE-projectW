@@ -1,5 +1,6 @@
 import { Request, Response } from 'express';
 import { CampaignService } from '../services/campaign.service.js';
+import { MessageService } from '../services/message.service.js';
 import { UserService } from '../services/user.service.js';
 
 export class CampaignController {
@@ -184,6 +185,44 @@ export class CampaignController {
       });
     } catch (error) {
       console.error('Error deleting campaign:', error);
+      return res.status(500).json({
+        success: false,
+        message: 'Internal server error'
+      });
+    }
+  }
+
+  /**
+   * Clean campaign - Delete all messages and reset message count
+   * DELETE /api/campaigns/:id/clean
+   */
+  static async clean(req: Request, res: Response) {
+    try {
+      const { id } = req.params;
+
+      const existingCampaign = await CampaignService.findById(id);
+      if (!existingCampaign) {
+        return res.status(404).json({
+          success: false,
+          message: 'Campaign not found'
+        });
+      }
+
+      // Delete all messages associated with this campaign
+      const deletedCount = await MessageService.deleteByCampaignId(id);
+
+      // Delete the campaign itself
+      await CampaignService.delete(id);
+
+      return res.status(200).json({
+        success: true,
+        message: `Campaign and ${deletedCount} message(s) deleted successfully.`,
+        data: {
+          deletedMessages: deletedCount
+        }
+      });
+    } catch (error) {
+      console.error('Error cleaning campaign:', error);
       return res.status(500).json({
         success: false,
         message: 'Internal server error'

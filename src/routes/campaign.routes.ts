@@ -18,4 +18,7 @@ router.put('/:id', CampaignController.update);
 // Delete campaign
 router.delete('/:id', CampaignController.delete);
 
+// Clean campaign (delete all messages & reset message count)
+router.delete('/:id/clean', CampaignController.clean);
+
 export default router;

@@ -74,6 +74,18 @@ export class CampaignService {
   }
 
   /**
+   * Reset message count for a campaign (used during clean)
+   */
+  static async resetMessageCount(id: string) {
+    const [updatedCampaign] = await db
+      .update(campaigns)
+      .set({ messageCount: 0, updatedAt: new Date() })
+      .where(eq(campaigns.id, id))
+      .returning();
+    return updatedCampaign;
+  }
+
+  /**
    * Delete campaign by ID
    */
   static async delete(id: string) {

@@ -146,6 +146,17 @@ export class MessageService {
   }
 
   /**
+   * Delete all messages for a campaign
+   */
+  static async deleteByCampaignId(campaignId: string) {
+    const deleted = await db
+      .delete(messages)
+      .where(eq(messages.campaignId, campaignId))
+      .returning();
+    return deleted.length;
+  }
+
+  /**
    * Update message reply status
    */
   static async updateReplyStatus(id: string, status: 'pending' | 'sent' | 'replied' | 'failed') {
