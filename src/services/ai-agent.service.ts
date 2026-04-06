@@ -69,8 +69,9 @@ export class AiAgentService {
       ? `\n\nIf the user expresses interest in a meeting, consultation, demo, or booking, share the relevant booking link:\n${links.join('\n')}`
       : '';
 
-    const nameInstruction = integrations?.useCustomerName && customerName
-      ? `\n\nSince this is the user's first message, you MUST start your reply exactly with "Hi ${customerName}, ".`
+    const firstName = customerName?.split(' ')[0] ?? customerName;
+    const nameInstruction = integrations?.useCustomerName && firstName
+      ? `\n\nSince this is the user's first message, you MUST start your reply exactly with "Hi ${firstName}, ".`
       : '';
 
     const systemPrompt = `You are ${agent.name}, a ${agent.agentTitle}.\n\n${agent.instructions}${meetingInstruction}${nameInstruction}\n\nKeep your reply concise and friendly. Do not use markdown formatting.`;
