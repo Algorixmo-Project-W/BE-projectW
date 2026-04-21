@@ -7,6 +7,7 @@ import campaignRoutes from './campaign.routes.js';
 import messageRoutes from './message.routes.js';
 import uploadRoutes from './upload.routes.js';
 import aiAgentRoutes from './ai-agent.routes.js';
+import webChatRoutes from './web-chat.routes.js';
 
 const router = Router();
 
@@ -19,5 +20,6 @@ router.use('/api/campaigns', campaignRoutes);
 router.use('/api/messages', messageRoutes);
 router.use('/api/uploads', uploadRoutes);
 router.use('/api/ai-agents', aiAgentRoutes);
+router.use('/api/chat', webChatRoutes);
 
 export default router;

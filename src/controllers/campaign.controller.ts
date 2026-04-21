@@ -10,7 +10,7 @@ export class CampaignController {
    */
   static async create(req: Request, res: Response) {
     try {
-      const { userId, name, fixedReply, isActive, replyType, replyImageUrl, aiAgentId } = req.body;
+      const { userId, name, fixedReply, isActive, replyType, replyImageUrl, aiAgentId, channel, firstMessage } = req.body;
 
       // Validate required fields
       if (!userId || !name) {
@@ -49,6 +49,8 @@ export class CampaignController {
         fixedReply: fixedReply?.trim() || null,
         replyImageUrl: replyImageUrl || null,
         aiAgentId: aiAgentId || null,
+        channel: channel || 'whatsapp',
+        firstMessage: firstMessage?.trim() || null,
         isActive: isActive || false
       });
 
@@ -124,7 +126,7 @@ export class CampaignController {
   static async update(req: Request, res: Response) {
     try {
       const { id } = req.params;
-      const { name, fixedReply, isActive, replyType, replyImageUrl, aiAgentId } = req.body;
+      const { name, fixedReply, isActive, replyType, replyImageUrl, aiAgentId, channel, firstMessage } = req.body;
 
       const existingCampaign = await CampaignService.findById(id);
       if (!existingCampaign) {
@@ -143,6 +145,8 @@ export class CampaignController {
       if (replyType !== undefined) updateData.replyType = replyType;
       if (replyImageUrl !== undefined) updateData.replyImageUrl = replyImageUrl;
       if (aiAgentId !== undefined) updateData.aiAgentId = aiAgentId;
+      if (channel !== undefined) updateData.channel = channel;
+      if (firstMessage !== undefined) updateData.firstMessage = firstMessage?.trim() || null;
 
       if (Object.keys(updateData).length === 0) {
         return res.status(400).json({ success: false, message: 'No valid fields to update' });

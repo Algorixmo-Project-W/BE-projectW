@@ -8,3 +8,4 @@ export * from './uploads.schema';
 export * from './ai-agents.schema';
 export * from './ai-integrations.schema';
 export * from './contacts.schema';
+export * from './web-sessions.schema';

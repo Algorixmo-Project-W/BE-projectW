@@ -12,6 +12,7 @@ export const messages = pgTable('messages', {
   messageContent: text('message_content').notNull(), // Incoming message text or media URL
   replyContent: text('reply_content'), // The auto-reply sent back (null if no reply)
   replyStatus: text('reply_status').default('pending'), // 'pending', 'sent', 'replied', 'failed'
+  sessionId: text('session_id'), // Web chat session ID (null for WhatsApp messages)
   whatsappMessageId: text('whatsapp_message_id'), // WhatsApp's incoming message ID
   replyMessageId: text('reply_message_id'), // WhatsApp's outgoing reply message ID
   receivedAt: timestamp('received_at').defaultNow().notNull(),

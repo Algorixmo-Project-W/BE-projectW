@@ -1,6 +1,6 @@
 import { eq, desc, asc, and, sql } from 'drizzle-orm';
 import { db } from '../db/index.js';
-import { messages } from '../db/schema/index.js';
+import { messages, webSessions } from '../db/schema/index.js';
 import { NewMessage, UpdateMessage } from '../types/database.types.js';
 
 export class MessageService {
@@ -70,7 +70,7 @@ export class MessageService {
       .groupBy(messages.senderNumber)
       .as('latest_per_sender');
 
-    // Join back to get the full latest message row
+    // Join back to get the full latest message row + web session contact info
     const rows = await db
       .select({
         senderNumber: messages.senderNumber,
@@ -80,6 +80,9 @@ export class MessageService {
         lastReplyContent: messages.replyContent,
         lastReplyStatus: messages.replyStatus,
         lastMessageId: messages.id,
+        contactName: webSessions.contactName,
+        contactEmail: webSessions.contactEmail,
+        contactPhone: webSessions.contactPhone,
       })
       .from(latestPerSender)
       .innerJoin(
@@ -88,6 +91,13 @@ export class MessageService {
           eq(messages.senderNumber, latestPerSender.senderNumber),
           eq(messages.receivedAt, latestPerSender.latestAt),
           eq(messages.campaignId, campaignId)
+        )
+      )
+      .leftJoin(
+        webSessions,
+        and(
+          eq(webSessions.sessionId, latestPerSender.senderNumber),
+          eq(webSessions.campaignId, campaignId)
         )
       )
       .orderBy(desc(latestPerSender.latestAt));

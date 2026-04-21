@@ -5,7 +5,8 @@ import { users } from './users.schema';
 export const contacts = pgTable('contacts', {
   id: uuid('id').defaultRandom().primaryKey(),
   userId: uuid('user_id').notNull().references(() => users.id, { onDelete: 'cascade' }),
-  phoneNumber: text('phone_number').notNull(),
+  phoneNumber: text('phone_number'),
+  email: text('email'),
   name: text('name'),
   createdAt: timestamp('created_at').defaultNow().notNull(),
   updatedAt: timestamp('updated_at').defaultNow().notNull(),
