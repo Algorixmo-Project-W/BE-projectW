@@ -52,7 +52,7 @@ export class WebChatController {
         return res.status(404).json({ success: false, message: 'Chat not found or inactive' });
       }
 
-      // Upsert contact and get id to link to session
+      // Upsert contact
       let contactId: string | null = null;
       try {
         const contact = await ContactService.upsertWeb(campaign.userId, { name, email, phone });
@@ -61,7 +61,21 @@ export class WebChatController {
         console.error('Failed to upsert contact:', err);
       }
 
-      // Create web session linked to contact
+      // Return existing session for this email+campaign (returning user)
+      const existingSession = await WebChatService.findSessionByContact(campaignId, email);
+      if (existingSession) {
+        const history = await WebChatService.getSessionHistory(campaignId, existingSession.sessionId);
+        const greetingRow = history.find(m => m.messageContent === '__greeting__');
+        return res.status(200).json({
+          success: true,
+          data: {
+            sessionId: existingSession.sessionId,
+            firstMessage: greetingRow?.replyContent || campaign.firstMessage || null,
+          }
+        });
+      }
+
+      // New session
       const session = await WebChatService.createSession({
         userId: campaign.userId,
         campaignId,
@@ -88,7 +102,6 @@ export class WebChatController {
               name
             );
 
-            // Save the greeting as the first reply in history
             await WebChatService.saveMessage({
               userId: campaign.userId,
               campaignId,

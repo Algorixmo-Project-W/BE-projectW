@@ -32,6 +32,19 @@ export class WebChatService {
     return session || null;
   }
 
+  static async findSessionByContact(campaignId: string, email: string) {
+    const [session] = await db
+      .select()
+      .from(webSessions)
+      .where(
+        and(
+          eq(webSessions.campaignId, campaignId),
+          eq(webSessions.contactEmail, email)
+        )
+      );
+    return session || null;
+  }
+
   static async getSessionHistory(campaignId: string, sessionId: string) {
     return await db
       .select()

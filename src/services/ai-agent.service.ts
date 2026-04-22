@@ -70,8 +70,9 @@ export class AiAgentService {
       : '';
 
     const firstName = customerName?.split(' ')[0] ?? customerName;
-    const nameInstruction = integrations?.useCustomerName && firstName
-      ? `\n\nSince this is the user's first message, you MUST start your reply exactly with "Hi ${firstName}, ".`
+    const isFirstMessage = incomingMessage === '__greeting__' && priorMessages.length === 0;
+    const nameInstruction = integrations?.useCustomerName && firstName && isFirstMessage
+      ? `\n\nThis is the user's first message. You MUST start your reply exactly with "Hi ${firstName}, ".`
       : '';
 
     const systemPrompt = `You are ${agent.name}, a ${agent.agentTitle}.\n\n${agent.instructions}${meetingInstruction}${nameInstruction}\n\nKeep your reply concise and friendly. Do not use markdown formatting.\n\nIMPORTANT: You must ONLY respond to topics directly related to your role and the business you represent. If the user asks anything outside of this scope (general knowledge, coding, other topics, or anything unrelated to your purpose), politely decline and redirect them back to what you can help with. Never answer off-topic questions even if asked directly.`;
