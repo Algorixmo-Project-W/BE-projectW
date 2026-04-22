@@ -11,6 +11,7 @@ const PORT = process.env.PORT;
 // Middleware
 const allowedOrigins = [
   process.env.FRONTEND_URL,
+  process.env.AI_CHAT_URL,
   'http://localhost:5173',
   'http://localhost:3000',
 ];
