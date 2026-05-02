@@ -91,6 +91,63 @@ export class WhatsAppService {
   }
 
   /**
+   * Send a direct text message using explicit credentials (no userId lookup)
+   */
+  static async sendMessage(
+    phoneNumberId: string,
+    accessToken: string,
+    toNumber: string,
+    messageBody: string
+  ): Promise<SendMessageResponse> {
+    try {
+      const apiUrl = `https://graph.facebook.com/v24.0/${phoneNumberId}/messages`;
+      const response = await fetch(apiUrl, {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${accessToken}`,
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+          messaging_product: 'whatsapp',
+          to: toNumber,
+          type: 'text',
+          text: { body: messageBody }
+        })
+      });
+      const data = await response.json() as any;
+      if (response.ok && data.messages?.[0]) {
+        return { success: true, messageId: data.messages[0].id };
+      }
+      return { success: false, error: data.error?.message || 'Unknown error' };
+    } catch (error) {
+      return { success: false, error: error instanceof Error ? error.message : 'Unknown error' };
+    }
+  }
+
+  /**
+   * Mark a message as read and send typing indicator
+   */
+  static async markAsRead(phoneNumberId: string, accessToken: string, messageId: string): Promise<void> {
+    try {
+      await fetch(`https://graph.facebook.com/v21.0/${phoneNumberId}/messages`, {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${accessToken}`,
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+          messaging_product: 'whatsapp',
+          status: 'read',
+          message_id: messageId,
+          typing_indicator: { type: 'text' }
+        })
+      });
+    } catch (error) {
+      console.error('❌ Failed to mark message as read:', error);
+    }
+  }
+
+  /**
    * Send an image message via WhatsApp Cloud API
    */
   static async sendImageMessage(

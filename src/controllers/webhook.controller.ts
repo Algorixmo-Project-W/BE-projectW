@@ -2,11 +2,11 @@ import { Request, Response } from 'express';
 import { WebhookService } from '../services/webhook.service.js';
 import { UserService } from '../services/user.service.js';
 import { MessageService } from '../services/message.service.js';
-import { CampaignService } from '../services/campaign.service.js';
 import { WhatsAppService } from '../services/whatsapp.service.js';
 import { AiAgentService } from '../services/ai-agent.service.js';
 import { AiIntegrationService } from '../services/ai-integration.service.js';
 import { ContactService } from '../services/contact.service.js';
+import { WaCredentialService } from '../services/wa-credential.service.js';
 
 export class WebhookController {
   /**
@@ -299,8 +299,31 @@ export class WebhookController {
                       messageContent = `[${message.type}]`;
                     }
 
-                    // Save message to database
+                    // Process incoming message (agent-direct flow)
                     try {
+                      const phoneNumberId = value.metadata?.phone_number_id as string | undefined;
+
+                      // Look up WA credentials to get accessToken
+                      let accessToken: string | undefined;
+                      let credPhoneNumberId = phoneNumberId;
+                      if (phoneNumberId) {
+                        const cred = await WaCredentialService.findByPhoneNumberId(phoneNumberId);
+                        accessToken = cred?.accessToken;
+                      }
+                      if (!accessToken) {
+                        // Fallback: use first credential for this user
+                        const creds = await WaCredentialService.findByUserId(userId);
+                        accessToken = creds[0]?.accessToken;
+                        credPhoneNumberId = creds[0]?.phoneNumberId;
+                      }
+
+                      // Mark as read immediately (fire-and-forget)
+                      if (accessToken && credPhoneNumberId) {
+                        WhatsAppService.markAsRead(credPhoneNumberId, accessToken, message.id).catch(err =>
+                          console.error('markAsRead error:', err)
+                        );
+                      }
+
                       // Extract name and upsert contact
                       const rawContactName = change.value.contacts?.[0]?.profile?.name;
                       const customerName = rawContactName && rawContactName.length > 0 ? rawContactName : null;
@@ -312,77 +335,53 @@ export class WebhookController {
                         }
                       }
 
-                      const activeCampaign = await CampaignService.findActiveByUserId(userId);
-                      if (!activeCampaign) continue;
-
                       let replyStatus: 'pending' | 'sent' | 'failed' = 'pending';
                       let replyMessageId: string | null = null;
                       let replyContent: string | null = null;
 
-                      const replyType = (activeCampaign.replyType || 'text') as 'text' | 'image' | 'ai';
+                      // Load active AI agent
+                      const agent = await AiAgentService.findActiveByUserId(userId);
 
-                      if (replyType === 'ai' && activeCampaign.aiAgentId) {
+                      if (agent && accessToken && credPhoneNumberId) {
                         try {
-                          const agent = await AiAgentService.findById(activeCampaign.aiAgentId);
-                          if (!agent) {
-                            replyStatus = 'failed';
+                          const historyLimit = parseInt(process.env.AI_HISTORY_MESSAGES || '5', 10);
+                          const threadHistory = await MessageService.getThreadByUser(userId, message.from);
+                          const priorMessages = threadHistory.slice(-historyLimit);
+                          const passCustomerName = threadHistory.length === 0 ? customerName : null;
+
+                          const integrations = await AiIntegrationService.findByAgentId(agent.id);
+                          replyContent = await AiAgentService.generateReply(
+                            agent,
+                            messageContent,
+                            priorMessages,
+                            integrations,
+                            passCustomerName
+                          );
+
+                          const sendResult = await WhatsAppService.sendMessage(
+                            credPhoneNumberId,
+                            accessToken,
+                            message.from,
+                            replyContent
+                          );
+                          if (sendResult.success) {
+                            replyStatus = 'sent';
+                            replyMessageId = sendResult.messageId || null;
                           } else {
-                            const historyLimit = parseInt(process.env.AI_HISTORY_MESSAGES || '5', 10);
-                            const threadHistory = await MessageService.getThreadHistory(activeCampaign.id, message.from);
-                            const priorMessages = threadHistory.slice(-historyLimit);
-
-                            // Only pass custom name if there's no prior history (first message greeting)
-                            const passCustomerName = threadHistory.length === 0 ? customerName : null;
-
-                            const integrations = await AiIntegrationService.findByAgentId(agent.id);
-                            replyContent = await AiAgentService.generateReply(
-                              agent,
-                              messageContent,
-                              priorMessages,
-                              integrations,
-                              passCustomerName
-                            );
-
-                            const sendResult = await WhatsAppService.sendTextMessage(userId, message.from, replyContent);
-                            if (sendResult.success) {
-                              replyStatus = 'sent';
-                              replyMessageId = sendResult.messageId || null;
-                              await CampaignService.incrementMessageCount(activeCampaign.id);
-                            } else {
-                              console.error('Failed to send AI reply:', sendResult.error);
-                              replyStatus = 'failed';
-                            }
+                            console.error('Failed to send AI reply:', sendResult.error);
+                            replyStatus = 'failed';
                           }
                         } catch (aiError: any) {
                           console.error('AI generation failed:', aiError.message);
                           replyStatus = 'failed';
                         }
-                      } else if (activeCampaign.fixedReply) {
-                        replyContent = replyType === 'image' && activeCampaign.replyImageUrl
-                          ? `[Image: ${activeCampaign.replyImageUrl}] ${activeCampaign.fixedReply}`
-                          : activeCampaign.fixedReply;
-
-                        const sendResult = await WhatsAppService.sendReply(
-                          userId,
-                          message.from,
-                          replyType as 'text' | 'image',
-                          activeCampaign.fixedReply,
-                          activeCampaign.replyImageUrl
-                        );
-
-                        if (sendResult.success) {
-                          replyStatus = 'sent';
-                          replyMessageId = sendResult.messageId || null;
-                          await CampaignService.incrementMessageCount(activeCampaign.id);
-                        } else {
-                          console.error('Failed to send auto-reply:', sendResult.error);
-                          replyStatus = 'failed';
-                        }
+                      } else if (!agent) {
+                        console.log(`[Webhook] No active agent for userId ${userId} — saving message without reply`);
                       }
 
                       await MessageService.create({
                         userId,
-                        campaignId: activeCampaign.id,
+                        campaignId: null,
                         senderNumber: message.from,
                         messageType: message.type,
                         messageContent,

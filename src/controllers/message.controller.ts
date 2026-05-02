@@ -169,6 +169,44 @@ export class MessageController {
   }
 
   /**
+   * Get all direct threads (no campaign) for a user
+   * GET /api/messages/threads/user/:userId
+   */
+  static async getThreadsByUser(req: Request, res: Response) {
+    try {
+      const { userId } = req.params;
+      const threads = await MessageService.getThreadsByUser(userId);
+      return res.status(200).json({
+        success: true,
+        message: 'Threads retrieved successfully',
+        data: threads
+      });
+    } catch (error) {
+      console.error('Error getting user threads:', error);
+      return res.status(500).json({ success: false, message: 'Internal server error' });
+    }
+  }
+
+  /**
+   * Get full message history for a (userId, senderNumber) direct thread
+   * GET /api/messages/thread/user/:userId/:senderNumber
+   */
+  static async getThreadByUser(req: Request, res: Response) {
+    try {
+      const { userId, senderNumber } = req.params;
+      const history = await MessageService.getThreadByUser(userId, decodeURIComponent(senderNumber));
+      return res.status(200).json({
+        success: true,
+        message: 'Thread history retrieved successfully',
+        data: history
+      });
+    } catch (error) {
+      console.error('Error getting user thread:', error);
+      return res.status(500).json({ success: false, message: 'Internal server error' });
+    }
+  }
+
+  /**
    * Delete message
    * DELETE /api/messages/:id
    */

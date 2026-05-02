@@ -122,6 +122,64 @@ export class MessageService {
   }
 
   /**
+   * Get all direct (non-campaign) threads for a user.
+   * Groups by senderNumber, returns latest message per thread.
+   */
+  static async getThreadsByUser(userId: string) {
+    const latestPerSender = db
+      .select({
+        senderNumber: messages.senderNumber,
+        latestAt: sql<Date>`max(${messages.receivedAt})`.as('latest_at'),
+        messageCount: sql<number>`count(*)::int`.as('message_count')
+      })
+      .from(messages)
+      .where(and(eq(messages.userId, userId), sql`${messages.campaignId} IS NULL`))
+      .groupBy(messages.senderNumber)
+      .as('latest_per_sender');
+
+    const rows = await db
+      .select({
+        senderNumber: messages.senderNumber,
+        messageCount: latestPerSender.messageCount,
+        latestAt: latestPerSender.latestAt,
+        lastMessageContent: messages.messageContent,
+        lastReplyContent: messages.replyContent,
+        lastReplyStatus: messages.replyStatus,
+        lastMessageId: messages.id,
+      })
+      .from(latestPerSender)
+      .innerJoin(
+        messages,
+        and(
+          eq(messages.senderNumber, latestPerSender.senderNumber),
+          eq(messages.receivedAt, latestPerSender.latestAt),
+          eq(messages.userId, userId),
+          sql`${messages.campaignId} IS NULL`
+        )
+      )
+      .orderBy(desc(latestPerSender.latestAt));
+
+    return rows;
+  }
+
+  /**
+   * Get full message history for a (userId, senderNumber) direct thread, oldest-first.
+   */
+  static async getThreadByUser(userId: string, senderNumber: string) {
+    return await db
+      .select()
+      .from(messages)
+      .where(
+        and(
+          eq(messages.userId, userId),
+          eq(messages.senderNumber, senderNumber),
+          sql`${messages.campaignId} IS NULL`
+        )
+      )
+      .orderBy(asc(messages.receivedAt));
+  }
+
+  /**
    * Update message by ID
    */
   static async update(id: string, messageData: UpdateMessage) {
