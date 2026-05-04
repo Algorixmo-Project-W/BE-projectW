@@ -1,6 +1,8 @@
 import { Request, Response } from 'express';
 import { MessageService } from '../services/message.service.js';
 import { UserService } from '../services/user.service.js';
+import { WaCredentialService } from '../services/wa-credential.service.js';
+import { WhatsAppService } from '../services/whatsapp.service.js';
 
 export class MessageController {
   /**
@@ -234,6 +236,61 @@ export class MessageController {
         success: false,
         message: 'Internal server error'
       });
+    }
+  }
+
+  /**
+   * Send a manual WhatsApp reply in a direct thread
+   * POST /api/messages/send/direct
+   */
+  static async sendDirect(req: Request, res: Response) {
+    try {
+      const { userId, senderNumber, messageContent } = req.body;
+
+      if (!userId || !senderNumber || !messageContent) {
+        return res.status(400).json({
+          success: false,
+          message: 'userId, senderNumber, and messageContent are required'
+        });
+      }
+
+      const user = await UserService.findById(userId);
+      if (!user) {
+        return res.status(404).json({ success: false, message: 'User not found' });
+      }
+
+      const credentials = await WaCredentialService.findByUserId(userId);
+      if (!credentials || credentials.length === 0) {
+        return res.status(400).json({ success: false, message: 'No WhatsApp credentials found for user' });
+      }
+
+      const { phoneNumberId, accessToken } = credentials[0];
+
+      const sendResult = await WhatsAppService.sendMessage(phoneNumberId, accessToken, senderNumber, messageContent);
+
+      const replyStatus = sendResult.success ? 'sent' : 'failed';
+
+      await MessageService.create({
+        userId,
+        campaignId: null,
+        senderNumber,
+        messageType: 'text',
+        messageContent: '(manual reply)',
+        replyContent: messageContent,
+        replyStatus,
+        whatsappMessageId: null,
+        replyMessageId: sendResult.success ? (sendResult.messageId ?? null) : null,
+        receivedAt: new Date()
+      });
+
+      if (!sendResult.success) {
+        return res.status(502).json({ success: false, message: sendResult.error || 'Failed to send message' });
+      }
+
+      return res.status(200).json({ success: true, message: 'Message sent' });
+    } catch (error) {
+      console.error('Error sending direct message:', error);
+      return res.status(500).json({ success: false, message: 'Internal server error' });
     }
   }
 }

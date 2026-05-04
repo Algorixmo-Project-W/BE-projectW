@@ -24,6 +24,9 @@ router.get('/thread/user/:userId/:senderNumber', MessageController.getThreadByUs
 // Get message by ID
 router.get('/:id', MessageController.getById);
 
+// Send a manual reply in a direct WhatsApp thread
+router.post('/send/direct', MessageController.sendDirect);
+
 // Create new message
 router.post('/', MessageController.create);
 
